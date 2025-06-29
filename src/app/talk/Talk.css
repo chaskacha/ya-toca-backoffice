@@ -73,15 +73,15 @@ input.talk-input::placeholder {
     outline: none;
 }
 
-ion-textarea.q-input {
-    --highlight-color: none !important;
-    --highlight-color-focused: none !important;
-    caret-color: #fff !important;
-    --placeholder-color: #525252;
-    --color: #fff;
+textarea.q-input {
+    color: #fff;
 }
 
-ion-textarea.q-input-error {
+textarea.q-input::placeholder {
+    color: #525252;
+}
+
+textarea.q-input-error {
     border-bottom: 2px solid #E53016 !important;
 }
 

@@ -25,8 +25,8 @@
     text-decoration: none;
 }
 
-.header-points[data-color="#000000"] div:hover,
-.header-points[data-color="#000000"] a:hover {
+.header-points[data-color="#000000"] div:not(:last-child):hover,
+.header-points[data-color="#000000"] a:not(:last-child):hover {
     border-bottom: 1px solid #000000 !important;
     font-weight: 700;
 }

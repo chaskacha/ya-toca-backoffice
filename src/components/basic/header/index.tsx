@@ -3,8 +3,8 @@ import React from 'react';
 import './styles.css';
 import { BurgerMenuSVG, CloseSVG, Logo, LogoWhite } from '../../../constants/svgs';
 import Link from "next/link";
+import { usePathname } from 'next/navigation';
 import { COLORS } from '../../../constants/texts';
-import { Links } from 'react-router-dom';
 
 interface Props {
     color: string;
@@ -18,19 +18,16 @@ const Header: React.FC<Props> = ({
     textColor = COLORS.BLACK,
     logoColor = COLORS.BLACK,
 }) => {
+    const pathname = usePathname();
     const [isOpen, setIsOpen] = React.useState<boolean>(false);
     const [currentPath, setCurrentPath] = React.useState<string>('home');
 
     React.useEffect(() => {
-        if (typeof window !== 'undefined') {
-            const href = window.location.href;
-            const path = href.split('/').pop() || 'home';
-            setCurrentPath(path);
-        }
+        const path = pathname.split('/').pop() || 'home';
+        setCurrentPath(path);
     }, []);
 
-    const isActive = (slug: string) =>
-        typeof window !== 'undefined' && window.location.href.includes(slug);
+    const isActive = (slug: string) => pathname.includes(slug);
 
     return (
         <div className='header' style={{ backgroundColor: color }}>
@@ -63,7 +60,7 @@ const Header: React.FC<Props> = ({
 
                     <Link
                         href="/talk"
-                        className={currentPath === 'talk#questions' ? 'header-menu-talk-questions' : `header-menu-${currentPath}`}
+                        className={pathname.includes('talk#questions') ? 'header-menu-talk-questions' : `header-menu-${currentPath}`}
                     >habla</Link>
                 </div>
 

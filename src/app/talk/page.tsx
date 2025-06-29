@@ -3,10 +3,10 @@ import React from 'react';
 import './Talk.css';
 import Wrapper from '@/components/basic/wrapper';
 import SafeArea from '@/components/basic/safe-area';
-import { db } from '@/constants/firebase';
-import { addDoc, collection, getDocs, serverTimestamp } from 'firebase/firestore';
 import qr from '@/assets/images/qr_ya_toca.png';
 import Image from 'next/image';
+import { capitalize_first_letter } from '@/constants';
+import QuestionBox from '@/components/basic/question-box';
 
 const Talk: React.FC = () => {
   const [isMobile, setIsMobile] = React.useState(false);
@@ -16,15 +16,25 @@ const Talk: React.FC = () => {
   const sectionColor = '#EABF00';
   const sectionTextColor = '#FFFFFF';
   const [responses, setResponses] = React.useState<{ id: string; response: string; timestamp: Date }[]>([]);
-  const [question1, setQuestion1] = React.useState<string | undefined>(undefined);
-  const [question2, setQuestion2] = React.useState<string | undefined>(undefined);
-  const [question3, setQuestion3] = React.useState<string | undefined>(undefined);
-  const [msgQ1, setMsgQ1] = React.useState<{ type: 'success' | 'error'; question: 1 | 2 | 3 } | null>(null);
-  const textareaRef1 = React.useRef<HTMLTextAreaElement | null>(null);
-  const [msgQ2, setMsgQ2] = React.useState<{ type: 'success' | 'error'; question: 1 | 2 | 3 } | null>(null);
-  const textareaRef2 = React.useRef<HTMLTextAreaElement | null>(null);
-  const [msgQ3, setMsgQ3] = React.useState<{ type: 'success' | 'error'; question: 1 | 2 | 3 } | null>(null);
-  const textareaRef3 = React.useRef<HTMLTextAreaElement | null>(null);
+  type QuestionId = 1 | 2 | 3;
+
+  const [questions, setQuestions] = React.useState<Record<QuestionId, string>>({
+    1: '',
+    2: '',
+    3: ''
+  });
+
+  const [messages, setMessages] = React.useState<Record<QuestionId, { type: 'success' | 'error' } | null>>({
+    1: null,
+    2: null,
+    3: null
+  });
+
+  const textareaRefs = {
+    1: React.useRef<HTMLTextAreaElement | null>(null),
+    2: React.useRef<HTMLTextAreaElement | null>(null),
+    3: React.useRef<HTMLTextAreaElement | null>(null),
+  };
   // videos
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const videoRefMobile = React.useRef<HTMLVideoElement>(null);
@@ -53,18 +63,25 @@ const Talk: React.FC = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  const fetchData = () => {
-    // setLoading(true);
-    const ref = collection(db, 'c_responses')
-    getDocs(ref).then((snapshot) => {
-      const data: any = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-        timestamp: doc.data().timestamp?.toDate() || new Date()
+  const fetchData = async () => {
+    try {
+      const response = await fetch("/api/opiniones-hero", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+      const data = await response.json();
+      setResponses(data.data.map((item: { comentario: string, fecha: string }) => {
+        return {
+          id: item.fecha,
+          response: item.comentario,
+          timestamp: new Date(item.fecha)
+        }
       }));
-      setResponses(data);
-      // setLoading(false);
-    })
+    } catch (error) {
+      console.log(error);
+    }
   }
   const handleResponse = (e: any) => {
     const value = e.target.value;
@@ -72,98 +89,65 @@ const Talk: React.FC = () => {
       setResponse(value);
     }
   };
-  const submitResponse = () => {
+  const submitResponse = async () => {
     if (response) {
-      setLoadingPost(true);
-      const ref = collection(db, 'c_responses')
-      addDoc(ref, { response, timestamp: serverTimestamp() }).then((res) => {
+      try {
+        setLoadingPost(true);
+        // save to the db
+        const res = await fetch("/api/opiniones-hero", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ message: response }),
+        })
+        const fecha = new Date();
         setLoadingPost(false);
-        setResponses((prev) => [{ id: res.id, response, timestamp: new Date() }, ...prev])
+        setResponses((prev) => [{ id: fecha.toISOString(), response, timestamp: fecha }, ...prev])
         setResponse('');
-      }).catch((error: any) => {
+      } catch (error) {
         console.log(error);
         setLoadingPost(false);
-      })
+      } finally {
+        setLoadingPost(false);
+      }
+
     }
   }
-  const submitQuestion = async (type: 1 | 2 | 3) => {
-    const questions = {
-      1: question1,
-      2: question2,
-      3: question3,
-    };
+  const submitQuestion = async (type: QuestionId) => {
+    const value = questions[type];
+    const fieldName = `q${type}` as 'q1' | 'q2' | 'q3';
 
-    const fieldNames = {
-      1: 'question1',
-      2: 'question2',
-      3: 'question3',
-    };
-
-    const questionValue = questions[type];
-    const fieldName = fieldNames[type];
-
-    if (!questionValue) return;
+    if (!value) return;
 
     setLoadingQuestion(true);
-    const ref = collection(db, 'c_questions');
-    addDoc(ref, { [fieldName]: questionValue, timestamp: serverTimestamp() })
-      .then(() => {
-        setLoadingQuestion(false);
-        switch (type) {
-          case 1:
-            setQuestion1('');
-            const el = textareaRef1.current;
-            // reset the textarea height
-            if (el) {
-              el.style.height = 'auto';
-            }
-            setMsgQ1({ type: 'success', question: 1 });
-            setTimeout(() => {
-              setMsgQ1(null);
-            }, 1000);
-            break;
-          case 2:
-            setQuestion2('');
-            const el2 = textareaRef2.current;
-            // reset the textarea height
-            if (el2) {
-              el2.style.height = 'auto';
-            }
-            setMsgQ2({ type: 'success', question: 2 });
-            setTimeout(() => {
-              setMsgQ2(null);
-            }, 1000);
-            break;
-          case 3:
-            setQuestion3('');
-            const el3 = textareaRef3.current;
-            // reset the textarea height
-            if (el3) {
-              el3.style.height = 'auto';
-            }
-            setMsgQ3({ type: 'success', question: 3 });
-            setTimeout(() => {
-              setMsgQ3(null);
-            }, 1000);
-            break;
-        }
-      })
-      .catch((error: any) => {
-        console.log(error);
-        switch (type) {
-          case 1:
-            setMsgQ1({ type: 'error', question: 1 });
-            break;
-          case 2:
-            setMsgQ2({ type: 'error', question: 2 });
-            break;
-          case 3:
-            setMsgQ3({ type: 'error', question: 3 });
-            break;
-        }
-        setLoadingQuestion(false);
+    try {
+      const response = await fetch("/api/opiniones", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ [fieldName]: value }),
       });
+
+      console.log(await response.json());
+
+      setQuestions(prev => ({ ...prev, [type]: '' }));
+      const el = textareaRefs[type].current;
+      if (el) el.style.height = 'auto';
+
+      setMessages(prev => ({ ...prev, [type]: { type: 'success' } }));
+      setTimeout(() => {
+        setMessages(prev => ({ ...prev, [type]: null }));
+      }, 1000);
+    } catch (err) {
+      console.log(err);
+      setMessages(prev => ({ ...prev, [type]: { type: 'error' } }));
+    } finally {
+      setLoadingQuestion(false);
+    }
   };
+
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -224,7 +208,7 @@ const Talk: React.FC = () => {
                     {responses
                       .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
                       .map((response) => (
-                        <div key={response.id} className="talk-p3-response">{response.response}</div>
+                        <div key={response.id} className="talk-p3-response">{capitalize_first_letter(response.response)}</div>
                       ))}
                   </div>
                 </div>
@@ -264,87 +248,45 @@ const Talk: React.FC = () => {
               <SafeArea>
                 <>
                   <div className="q-name">Buzón</div>
-                  <div className="q-item w100 gap">
-                    <div className="q-input-title">
+                  <QuestionBox
+                    title={<div className="q-input-title">
                       <div className="q-input-title">¿Qué %$#!@</div>
                       <div className="q-input-title">hacemos con el Perú?</div>
-                    </div>
-                    <div className="q-input-p1" />
-                    <div className="w100 q-input-response">
-                      <textarea
-                        ref={textareaRef1}
-                        rows={1}
-                        value={question1}
-                        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
-                          const el = textareaRef1.current;
-                          if (el) {
-                            el.style.height = 'auto'; // Reset height
-                            el.style.height = `${el.scrollHeight}px`; // Set to scroll height
-                          }
-                          setQuestion1(e.target.value)
-                        }}
-                        className={msgQ1 && msgQ1.question === 1 && msgQ1.type === 'error' ? 'q-input q-input-error' : 'q-input'}
-                        placeholder="Escribe el mensaje aquí..." />
-                      {msgQ1 && msgQ1.question === 1 && msgQ1.type === 'success' && <div className="q-success-msg">Mensaje enviado</div>}
-                      {msgQ1 && msgQ1.question === 1 && msgQ1.type === 'error' && <div className="q-error-msg">Se produjo un error. Por favor, vuelve enviar el mensaje.</div>}
-                      {question1 && <button
-                        disabled={loadingQuestion}
-                        onClick={() => submitQuestion(1)}
-                        className={`talk-save-button pointer thunder-fw-bold-lc uppercase ${loadingQuestion ? 'disabled' : ''}`}>Enviar mensaje</button>}
-                    </div>
-                  </div>
-                  <div className="q-item w100 gap">
-                    <div className="q-input-title">Lo que más me jode del Perú...</div>
-                    <div className="q-input-p1" />
-                    <div className="w100 q-input-response">
-                      <textarea
-                        ref={textareaRef2}
-                        rows={1}
-                        value={question2}
-                        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
-                          const el = textareaRef2.current;
-                          if (el) {
-                            el.style.height = 'auto'; // Reset height
-                            el.style.height = `${el.scrollHeight}px`; // Set to scroll height
-                          }
-                          setQuestion2(e.target.value)
-                        }}
-                        className={msgQ2 && msgQ2.question === 2 && msgQ2.type === 'error' ? 'q-input q-input-error' : 'q-input'}
-                        placeholder="Escribe el mensaje aquí..." />
-                      {msgQ2 && msgQ2.question === 2 && msgQ2.type === 'success' && <div className="q-success-msg">Mensaje enviado</div>}
-                      {msgQ2 && msgQ2.question === 2 && msgQ2.type === 'error' && <div className="q-error-msg">Se produjo un error. Por favor, vuelve enviar el mensaje.</div>}
-                      {question2 && <button
-                        disabled={loadingQuestion}
-                        onClick={() => submitQuestion(2)}
-                        className={`talk-save-button pointer thunder-fw-bold-lc uppercase ${loadingQuestion ? 'disabled' : ''}`}>Enviar mensaje</button>}
-                    </div>
-                  </div>
-                  <div className="q-item w100 gap">
-                    <div className="q-input-title">No intentaría huir del Perú si...</div>
-                    <div className="q-input-p1" />
-                    <div className="w100 q-input-response">
-                      <textarea
-                        ref={textareaRef3}
-                        rows={1}
-                        value={question3}
-                        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
-                          const el = textareaRef3.current;
-                          if (el) {
-                            el.style.height = 'auto'; // Reset height
-                            el.style.height = `${el.scrollHeight}px`; // Set to scroll height
-                          }
-                          setQuestion3(e.target.value)
-                        }}
-                        className={msgQ3 && msgQ3.question === 3 && msgQ3.type === 'error' ? 'q-input q-input-error' : 'q-input'}
-                        placeholder="Escribe el mensaje aquí..." />
-                      {msgQ3 && msgQ3.question === 3 && msgQ3.type === 'success' && <div className="q-success-msg">Mensaje enviado</div>}
-                      {msgQ3 && msgQ3.question === 3 && msgQ3.type === 'error' && <div className="q-error-msg">Se produjo un error. Por favor, vuelve enviar el mensaje.</div>}
-                      {question3 && <button
-                        disabled={loadingQuestion}
-                        onClick={() => submitQuestion(3)}
-                        className="talk-save-button pointer thunder-fw-bold-lc uppercase">Enviar mensaje</button>}
-                    </div>
-                  </div>
+                    </div>}
+                    value={questions[1]}
+                    onChange={(e) => setQuestions(prev => ({ ...prev, [1]: e.target.value }))}
+                    onSubmit={() => submitQuestion(1)}
+                    textareaRef={textareaRefs[1]}
+                    message={messages[1] && { ...messages[1], question: 1 }}
+                    loading={loadingQuestion}
+                    questionId={1}
+                  />
+
+                  <QuestionBox
+                    title={<div className="q-input-title">
+                      <div className="q-input-title">Lo que más me jode del Perú...</div>
+                    </div>}
+                    value={questions[2]}
+                    onChange={(e) => setQuestions(prev => ({ ...prev, [2]: e.target.value }))}
+                    onSubmit={() => submitQuestion(2)}
+                    textareaRef={textareaRefs[2]}
+                    message={messages[2] && { ...messages[2], question: 2 }}
+                    loading={loadingQuestion}
+                    questionId={2}
+                  />
+
+                  <QuestionBox
+                    title={<div className="q-input-title">
+                      <div className="q-input-title">No intentaría huir del Perú si...</div>
+                    </div>}
+                    value={questions[3]}
+                    onChange={(e) => setQuestions(prev => ({ ...prev, [3]: e.target.value }))}
+                    onSubmit={() => submitQuestion(3)}
+                    textareaRef={textareaRefs[3]}
+                    message={messages[3] && { ...messages[3], question: 3 }}
+                    loading={loadingQuestion}
+                    questionId={3}
+                  />
                   <div className="q-item w100 gap">
                     <div className="q-input-title">Mándanos lo que quieras por <a href="https://wa.me/51922824173" target="_blank" style={{
                       borderBottom: '1px solid white',

@@ -1,3 +1,6 @@
+export const capitalize_first_letter = (str: string): string => {
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
 export const companies: { id: number; name_company: string; description: string; email?: string; networks?: string; phones?: string[], keywords?: string }[] = [
   {
     id: 1,
