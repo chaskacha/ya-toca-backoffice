@@ -1,6 +1,3 @@
-export function getSubstring(value: string, limit: number) {
-  return value?.length > limit ? value?.substring(0, window.innerWidth > 400 ? limit : window.innerWidth > 370 ? limit - 10 : limit - 15) + '...' : value;
-}
 export const companies: { id: number; name_company: string; description: string; email?: string; networks?: string; phones?: string[], keywords?: string }[] = [
   {
     id: 1,

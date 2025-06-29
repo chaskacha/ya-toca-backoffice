@@ -76,6 +76,7 @@ input.directory-search-input-mobile {
 .directory-content-company-name {
     font-size: 54px;
     margin-bottom: 32px;
+    line-height: normal;
 }
 
 .directory-content-company-title {

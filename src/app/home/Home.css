@@ -633,7 +633,7 @@
         max-height: 57px;
     }
     .home-section-video {
-        background-image: url('@/assets/images/gif_home.gif');
+        background-image: url('../../assets/images/gif_home.gif');
         background-position: unset;
         background-size: cover;
         background-repeat: no-repeat;

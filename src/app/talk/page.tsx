@@ -41,11 +41,14 @@ const Talk: React.FC = () => {
 
 
   React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
 
     checkMobile(); // Initial check
+
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
@@ -163,13 +166,15 @@ const Talk: React.FC = () => {
   };
 
   React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+
     const hash = window.location.hash;
     if (hash) {
       const el = document.querySelector(hash);
       if (el) {
         setTimeout(() => {
           el.scrollIntoView({ behavior: 'smooth' });
-        }, 100); // delay to ensure DOM is ready
+        }, 100); // small delay to ensure DOM is ready
       }
     }
   }, []);
@@ -185,24 +190,6 @@ const Talk: React.FC = () => {
     // Cleanup interval on unmount
     return () => clearInterval(interval);
   }, []);
-  // useIonViewDidEnter(() => {
-  //     const p1 = document.querySelector('.talk-p1') as any;
-  //     const p3 = document.querySelector('.talk-p3') as any;
-
-  //     if (!p1 || !p3) return;
-
-  //     const updateHeight = () => {
-  //         p3.style.maxHeight = `${p1.getBoundingClientRect().height}px`;
-  //     };
-
-  //     // Wait a tick to ensure DOM has fully rendered
-  //     setTimeout(updateHeight, 500);
-
-  //     const observer = new ResizeObserver(updateHeight);
-  //     observer.observe(p1);
-
-  //     return () => observer.disconnect();
-  // });
   return (
     <>
       <Wrapper

@@ -25,15 +25,21 @@ const Footer: React.FC<Props> = ({ color = COLORS.BLACK }) => {
                         <div className='flex1 footer-networks'>
                             <div className='fw400 fs16' style={{ width: 'max-content' }}>Síguenos en:</div>
                             <div style={{ height: 21 }} />
-                            <div
+                            <a
                                 className='fs16 fw400 footer-networks-item'
-                                onClick={() => window.open('https://www.instagram.com/yatoca.pe?igsh=MTBuenQ1MHY2ZnA3ag==', '_blank')}><IconInsta color={color === COLORS.BLACK ? COLORS.WHITE : COLORS.BLACK} />Instagram</div>
-                            <div
+                                href='https://www.instagram.com/yatoca.pe?igsh=MTBuenQ1MHY2ZnA3ag=='
+                                target='_blank'
+                                rel='noopener noreferrer'><IconInsta color={color === COLORS.BLACK ? COLORS.WHITE : COLORS.BLACK} />Instagram</a>
+                            <a
                                 className='fs16 fw400 footer-networks-item'
-                                onClick={() => window.open('https://www.facebook.com/share/1CWrVyGAfg/?mibextid=LQQJ4d', '_blank')}><IconFb color={color === COLORS.BLACK ? COLORS.WHITE : COLORS.BLACK} />Facebook</div>
-                            <div
+                                href='https://www.facebook.com/share/1CWrVyGAfg/?mibextid=LQQJ4d'
+                                target='_blank'
+                                rel='noopener noreferrer'><IconFb color={color === COLORS.BLACK ? COLORS.WHITE : COLORS.BLACK} />Facebook</a>
+                            <a
                                 className='fs16 fw400 footer-networks-item'
-                                onClick={() => window.open('https://www.tiktok.com/@yatoca.pe?_t=ZM-8xEYtCXpEbW&_r=1', '_blank')}><IconTikTok color={color === COLORS.BLACK ? COLORS.WHITE : COLORS.BLACK} /> Tik Tok</div>
+                                href='https://www.tiktok.com/@yatoca.pe?_t=ZM-8xEYtCXpEbW&_r=1'
+                                target='_blank'
+                                rel='noopener noreferrer'><IconTikTok color={color === COLORS.BLACK ? COLORS.WHITE : COLORS.BLACK} /> Tik Tok</a>
                         </div>
                     </div>
                     <div className="logos-grid">

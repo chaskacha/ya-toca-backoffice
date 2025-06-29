@@ -30,15 +30,21 @@ const FooterMobile: React.FC<Props> = ({ color = COLORS.BLACK }) => {
                         <div className='footer-networks-mobile'>
                             <div className='fw400 fs24'>Síguenos en:</div>
                             <div style={{ height: 24 }} />
-                            <div
+                            <a
                                 className='fs24 fw400 footer-networks-item-mobile'
-                                onClick={() => window.open('https://www.instagram.com/yatoca.pe?igsh=MTBuenQ1MHY2ZnA3ag==', '_blank')}><IconInsta color={color === COLORS.BLACK ? COLORS.WHITE : COLORS.BLACK} />Instagram</div>
-                            <div
+                                href='https://www.instagram.com/yatoca.pe?igsh=MTBuenQ1MHY2ZnA3ag=='
+                                target='_blank'
+                                rel='noopener noreferrer'><IconInsta color={color === COLORS.BLACK ? COLORS.WHITE : COLORS.BLACK} />Instagram</a>
+                            <a
                                 className='fs24 fw400 footer-networks-item-mobile'
-                                onClick={() => window.open('https://www.facebook.com/share/1CWrVyGAfg/?mibextid=LQQJ4d', '_blank')}><IconFb color={color === COLORS.BLACK ? COLORS.WHITE : COLORS.BLACK} />Facebook</div>
-                            <div
+                                href='https://www.facebook.com/share/1CWrVyGAfg/?mibextid=LQQJ4d'
+                                target='_blank'
+                                rel='noopener noreferrer'><IconFb color={color === COLORS.BLACK ? COLORS.WHITE : COLORS.BLACK} />Facebook</a>
+                            <a
                                 className='fs24 fw400 footer-networks-item-mobile'
-                                onClick={() => window.open('https://www.tiktok.com/@yatoca.pe?_t=ZM-8xEYtCXpEbW&_r=1', '_blank')}><IconTikTok color={color === COLORS.BLACK ? COLORS.WHITE : COLORS.BLACK} />Tik Tok</div>
+                                href='https://www.tiktok.com/@yatoca.pe?_t=ZM-8xEYtCXpEbW&_r=1'
+                                target='_blank'
+                                rel='noopener noreferrer'><IconTikTok color={color === COLORS.BLACK ? COLORS.WHITE : COLORS.BLACK} />Tik Tok</a>
                         </div>
                     </div>
                 </>

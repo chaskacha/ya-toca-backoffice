@@ -1,9 +1,10 @@
-'use client';
+"use client";
 import React from 'react';
 import './styles.css';
 import { BurgerMenuSVG, CloseSVG, Logo, LogoWhite } from '../../../constants/svgs';
 import Link from "next/link";
 import { COLORS } from '../../../constants/texts';
+import { Links } from 'react-router-dom';
 
 interface Props {
     color: string;
@@ -11,47 +12,105 @@ interface Props {
     logoColor?: string;
     burgerColor?: string;
 }
-const Header: React.FC<Props> = ({ color, textColor = COLORS.BLACK, logoColor = COLORS.BLACK, burgerColor = COLORS.BLACK }) => {
-    const path = window.location.href.split('/').pop() || 'home';
+
+const Header: React.FC<Props> = ({
+    color,
+    textColor = COLORS.BLACK,
+    logoColor = COLORS.BLACK,
+}) => {
     const [isOpen, setIsOpen] = React.useState<boolean>(false);
+    const [currentPath, setCurrentPath] = React.useState<string>('home');
+
+    React.useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const href = window.location.href;
+            const path = href.split('/').pop() || 'home';
+            setCurrentPath(path);
+        }
+    }, []);
+
+    const isActive = (slug: string) =>
+        typeof window !== 'undefined' && window.location.href.includes(slug);
+
     return (
         <div className='header' style={{ backgroundColor: color }}>
             <div className='header-body w100'>
                 <Link href="/home"><Logo color={logoColor} /></Link>
                 <div className={`header-points up fw400`} data-color={textColor}>
-                    <Link href="/about-us" style={{ color: textColor, borderBottom: window.location.href.includes('/about-us') ? '1px solid ' + textColor : 'unset' }}>quiénes somos</Link>
-                    {/* <Link to="/festivals" style={{ color: textColor, borderBottom: window.location.href.includes('/festivals') ? '1px solid ' + textColor : 'unset' }}>festivales</Link> */}
-                    <Link href="/gallery" style={{ color: textColor, borderBottom: window.location.href.includes('/gallery') ? '1px solid ' + textColor : 'unset' }}>galería</Link>
-                    <Link href="/directory" style={{ color: textColor, borderBottom: window.location.href.includes('/directory') ? '1px solid ' + textColor : 'unset' }}>directorio</Link>
-                    {/* <Link to="/services" style={{ color: color === COLORS.BLACK ? COLORS.WHITE : COLORS.BLACK, borderBottom: window.location.href.includes('/services') ? '1px solid #000000' : 'unset' }}>qué hacemos</Link> */}
-                    <Link href="/talk" className={path === 'talk#questions' ? 'header-menu-talk-questions' : `header-menu-${path}`}>habla</Link>
+                    <Link
+                        href="/about-us"
+                        style={{
+                            color: textColor,
+                            borderBottom: isActive('/about-us') ? `1px solid ${textColor}` : 'unset'
+                        }}
+                    >quiénes somos</Link>
+
+                    <Link
+                        href="/gallery"
+                        style={{
+                            color: textColor,
+                            borderBottom: isActive('/gallery') ? `1px solid ${textColor}` : 'unset'
+                        }}
+                    >galería</Link>
+
+                    <Link
+                        href="/directory"
+                        style={{
+                            color: textColor,
+                            borderBottom: isActive('/directory') ? `1px solid ${textColor}` : 'unset'
+                        }}
+                    >directorio</Link>
+
+                    <Link
+                        href="/talk"
+                        className={currentPath === 'talk#questions' ? 'header-menu-talk-questions' : `header-menu-${currentPath}`}
+                    >habla</Link>
                 </div>
-                <div onClick={() => setIsOpen(true)} className='burger-menu'><BurgerMenuSVG color={textColor} /></div>
-                {isOpen && <div className='burger-menu-opened'>
-                    <div className='header-opened-header d-flex flex-row jcsb aic'>
-                        <LogoWhite />
-                        <div onClick={() => setIsOpen(false)} style={{ height: 22 }}><CloseSVG /></div>
+
+                <div onClick={() => setIsOpen(true)} className='burger-menu'>
+                    <BurgerMenuSVG color={textColor} />
+                </div>
+
+                {isOpen && (
+                    <div className='burger-menu-opened'>
+                        <div className='header-opened-header d-flex flex-row jcsb aic'>
+                            <LogoWhite />
+                            <div onClick={() => setIsOpen(false)} style={{ height: 22 }}>
+                                <CloseSVG />
+                            </div>
+                        </div>
+
+                        <div style={{ minHeight: 33 }} />
+                        <div>
+                            <div className='open-menu-title thunder-fw-bold-lc'>
+                                <Link href="/about-us">QUIÉNES SOMOS</Link>
+                            </div>
+                            <div className='open-menu-title thunder-fw-bold-lc'>
+                                <Link href="/gallery">GALERÍA</Link>
+                            </div>
+                            <div className='open-menu-title thunder-fw-bold-lc'>
+                                <Link href="/directory">DIRECTORIO</Link>
+                            </div>
+                            <div className='open-menu-title thunder-fw-bold-lc'>
+                                <Link href="/talk">HABLA</Link>
+                            </div>
+                        </div>
+
+                        <div style={{ minHeight: 11 }} />
+                        <div className="open-menu-divider" />
+                        <div style={{ minHeight: 49 }} />
+
+                        <div><Link className='open-menu-p fw400' href='https://www.instagram.com/yatoca.pe?igsh=MTBuenQ1MHY2ZnA3ag=='>Instagram</Link></div>
+                        <div><Link className='open-menu-p fw400' href='https://www.facebook.com/share/1CWrVyGAfg/?mibextid=LQQJ4d'>Facebook</Link></div>
+                        <div><Link className='open-menu-p fw400' href='https://www.tiktok.com/@yatoca.pe?_t=ZM-8xEYtCXpEbW&_r=1'>Tik Tok</Link></div>
+
+                        <div style={{ minHeight: 51 }} />
+                        <div className="open-menu-divider" />
                     </div>
-                    <div style={{ minHeight: 33 }} />
-                    <div>
-                        <div className='open-menu-title thunder-fw-bold-lc'><Link href="/about-us">QUIÉNES SOMOS</Link></div>
-                        {/* <div className='open-menu-title thunder-fw-bold-lc'><Link to="/festivals">FESTIVALES</Link></div> */}
-                        <div className='open-menu-title thunder-fw-bold-lc'><Link href="/gallery">GALERÍA</Link></div>
-                        <div className='open-menu-title thunder-fw-bold-lc'><Link href="/directory">DIRECTORIO</Link></div>
-                        {/* <div className='open-menu-title fw400'><Link to="/services">QUÉ HACEMOS</Link></div> */}
-                        <div className='open-menu-title thunder-fw-bold-lc'><Link href="/talk">HABLA</Link></div>
-                    </div>
-                    <div style={{ minHeight: 11 }} />
-                    <div className="open-menu-divider" />
-                    <div style={{ minHeight: 49 }} />
-                    <div className='open-menu-p fw400' onClick={() => window.open('https://www.instagram.com/yatoca.pe?igsh=MTBuenQ1MHY2ZnA3ag==', '_blank')}>Instagram</div>
-                    <div className='open-menu-p fw400' onClick={() => window.open('https://www.facebook.com/share/1CWrVyGAfg/?mibextid=LQQJ4d', '_blank')}>Facebook</div>
-                    <div className='open-menu-p fw400' onClick={() => window.open('https://www.tiktok.com/@yatoca.pe?_t=ZM-8xEYtCXpEbW&_r=1', '_blank')}>Tik Tok</div>
-                    <div style={{ minHeight: 51 }} />
-                    <div className="open-menu-divider" />
-                </div>}
+                )}
             </div>
         </div>
-    )
-}
+    );
+};
+
 export default Header;

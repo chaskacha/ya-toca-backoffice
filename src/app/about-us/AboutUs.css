@@ -8,7 +8,7 @@
     width: 100%;
     background-repeat: no-repeat;
     background-position: center;
-    background-image: url('@/assets/images/gif_about_us.gif');
+    background-image: url('../../assets/images/gif_about_us.gif');
     height: calc(100vh - 109px);
     max-height: 618px;
 }
