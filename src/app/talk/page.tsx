@@ -255,14 +255,14 @@ const Talk: React.FC = () => {
                       ...te sentaron al medio en el carro.
                     </div>
                     <div className="talk-content-divider" />
-                    <div><span className="fw700">En democracia pasa lo mismo:</span> Ser parte es opinar, y ser escuchado. Sino, fuiste: otro elige por ti.</div>
+                    <div><span className="fw700">En democracia pasa lo mismo:</span> ser parte es opinar, y ser escuchado. Sino, fuiste: otro elige por ti.</div>
                   </div>
                   <div className="talk-content-p2-mobile">
                     <div>
                       <span className="fw700">No metiste tu cuchara y ahora,</span> hay piña en tu pizza, te toca salir a hablar en la expo grupal, te sentaron al medio en el carro.
                     </div>
                     <div className="talk-content-divider" />
-                    <div><span className="fw700">En democracia pasa lo mismo:</span> Ser parte es opinar, y ser escuchado. Sino, fuiste: otro elige por ti.</div>
+                    <div><span className="fw700">En democracia pasa lo mismo:</span> ser parte es opinar, y ser escuchado. Sino, fuiste: otro elige por ti.</div>
                   </div>
                 </div>
               </SafeArea>
