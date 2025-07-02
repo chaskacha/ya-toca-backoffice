@@ -65,12 +65,12 @@ div {
 }
 
 .slick-next {
-  right: 0px;
+  right: 0px !important;
   z-index: 1;
 }
 
 .slick-prev {
-  left: 0px;
+  left: 0px !important;
   z-index: 1;
 }
 

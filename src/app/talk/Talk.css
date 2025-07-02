@@ -331,11 +331,11 @@ textarea.q-input-error {
     }
 
     .talk-content-p1 {
-        flex: 6;
+        flex: 5;
     }
 
     .talk-content-p2 {
-        flex: 6;
+        flex: 7;
         font-size: 40px;
         line-height: 58px;
     }
