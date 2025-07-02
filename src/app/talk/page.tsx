@@ -13,7 +13,7 @@ const Talk: React.FC = () => {
   const [response, setResponse] = React.useState('');
   const [loadingPost, setLoadingPost] = React.useState(false);
   const [loadingQuestion, setLoadingQuestion] = React.useState(false);
-  const sectionColor = '#EABF00';
+  const sectionColor = '#000000';
   const sectionTextColor = '#FFFFFF';
   const [responses, setResponses] = React.useState<{ id: string; response: string; timestamp: Date }[]>([]);
   type QuestionId = 1 | 2 | 3;
@@ -184,70 +184,9 @@ const Talk: React.FC = () => {
       >
         <>
           <>
-            <div className="talk-header">
-              <SafeArea>
-                <div className='talk-header-wrapper w100 gap'>
-                  <div className="talk-p1">
-                    <div className="thunder-fw-bold-lc talk-p1-title uppercase">No hacer nada por el Perú es el verdadero</div>
-                    <input
-                      onChange={handleResponse}
-                      onKeyDown={(e) => e.key === 'Enter' && submitResponse()}
-                      value={response}
-                      className='talk-input'
-                      placeholder="Escribe tu respuesta aquí..."
-                    />
-                    <div className="w100 tar textWhite mt8">{response.length}/30</div>
-                    {response && <button
-                      disabled={loadingPost}
-                      onClick={submitResponse}
-                      className={`talk-save-button pointer thunder-fw-bold-lc uppercase ${loadingPost ? 'disabled' : ''}`}>Guardar</button>}
-                  </div>
-                  <div className="talk-p2" />
-                  <div className="talk-p3">
-                    <div className="talk-p3-title thunder-fw-lc uppercase">Lo que la gente dice...</div>
-                    {responses
-                      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-                      .map((response) => (
-                        <div key={response.id} className="talk-p3-response">{capitalize_first_letter(response.response)}</div>
-                      ))}
-                  </div>
-                </div>
-              </SafeArea>
-            </div>
-            <div className='talk-content'>
-              <SafeArea>
-                <div className='d-flex flex-row w100 gap'>
-                  <div className="talk-content-p1" />
-                  <div className="talk-content-p2">
-                    <div className="fw700">
-                      No metiste tu cuchara y ahora
-                    </div>
-                    <div>
-                      ...hay piña en tu pizza.
-                    </div>
-                    <div>
-                      ...te toca salir a hablar en la expo grupal.
-                    </div>
-                    <div>
-                      ...te sentaron al medio en el carro.
-                    </div>
-                    <div className="talk-content-divider" />
-                    <div><span className="fw700">En democracia pasa lo mismo:</span> Ser parte es opinar, y ser escuchado. Sino, fuiste: otro elige por ti.</div>
-                  </div>
-                  <div className="talk-content-p2-mobile">
-                    <div>
-                      <span className="fw700">No metiste tu cuchara y ahora,</span> hay piña en tu pizza, te toca salir a hablar en la expo grupal, te sentaron al medio en el carro.
-                    </div>
-                    <div className="talk-content-divider" />
-                    <div><span className="fw700">En democracia pasa lo mismo:</span> Ser parte es opinar, y ser escuchado. Sino, fuiste: otro elige por ti.</div>
-                  </div>
-                </div>
-              </SafeArea>
-            </div>
             <div className="talk-questions" id="questions">
               <SafeArea>
                 <>
-                  <div className="q-name">Buzón</div>
                   <QuestionBox
                     title={<div className="q-input-title">
                       <div className="q-input-title">¿Qué %$#!@</div>
@@ -296,6 +235,66 @@ const Talk: React.FC = () => {
                     <div className='q-qr'><Image width={120} height={120} src={qr} alt="qr" /></div>
                   </div>
                 </>
+              </SafeArea>
+            </div>
+            <div className='talk-content'>
+              <SafeArea>
+                <div className='d-flex flex-row w100 gap'>
+                  <div className="talk-content-p1" />
+                  <div className="talk-content-p2">
+                    <div className="fw700">
+                      No metiste tu cuchara y ahora
+                    </div>
+                    <div>
+                      ...hay piña en tu pizza.
+                    </div>
+                    <div>
+                      ...te toca salir a hablar en la expo grupal.
+                    </div>
+                    <div>
+                      ...te sentaron al medio en el carro.
+                    </div>
+                    <div className="talk-content-divider" />
+                    <div><span className="fw700">En democracia pasa lo mismo:</span> Ser parte es opinar, y ser escuchado. Sino, fuiste: otro elige por ti.</div>
+                  </div>
+                  <div className="talk-content-p2-mobile">
+                    <div>
+                      <span className="fw700">No metiste tu cuchara y ahora,</span> hay piña en tu pizza, te toca salir a hablar en la expo grupal, te sentaron al medio en el carro.
+                    </div>
+                    <div className="talk-content-divider" />
+                    <div><span className="fw700">En democracia pasa lo mismo:</span> Ser parte es opinar, y ser escuchado. Sino, fuiste: otro elige por ti.</div>
+                  </div>
+                </div>
+              </SafeArea>
+            </div>
+            <div className="talk-header">
+              <SafeArea>
+                <div className='talk-header-wrapper w100 gap'>
+                  <div className="talk-p1">
+                    <div className="thunder-fw-bold-lc talk-p1-title uppercase">No hacer nada por el Perú es el verdadero</div>
+                    <input
+                      onChange={handleResponse}
+                      onKeyDown={(e) => e.key === 'Enter' && submitResponse()}
+                      value={response}
+                      className='talk-input'
+                      placeholder="Escribe tu respuesta aquí..."
+                    />
+                    <div className="w100 tar textWhite mt8">{response.length}/30</div>
+                    {response && <button
+                      disabled={loadingPost}
+                      onClick={submitResponse}
+                      className={`talk-save-button pointer thunder-fw-bold-lc uppercase ${loadingPost ? 'disabled' : ''}`}>Guardar</button>}
+                  </div>
+                  <div className="talk-p2" />
+                  <div className="talk-p3">
+                    <div className="talk-p3-title thunder-fw-lc uppercase">Lo que la gente dice...</div>
+                    {responses
+                      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+                      .map((response) => (
+                        <div key={response.id} className="talk-p3-response">{capitalize_first_letter(response.response)}</div>
+                      ))}
+                  </div>
+                </div>
               </SafeArea>
             </div>
             <div className="talk-cabildos">

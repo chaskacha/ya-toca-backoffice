@@ -1,3 +1,9 @@
+.counter-desktop,
+.counter-mobile {
+    font-size: 16px;
+    color: #ABABAB;
+    margin-top: 12px;
+}
 .directory-header {
     /* min-height: calc(100vh - 109px); */
     display: flex;
@@ -100,6 +106,10 @@ input.directory-search-input-mobile {
 
 @media (min-width: 0px) and (max-width: 767px) {
     .content-desktop {
+        display: none;
+    }
+
+    .counter-desktop {
         display: none;
     }
 
@@ -224,6 +234,10 @@ input.directory-search-input-mobile {
 
 @media (min-width: 768px) {
     .content-mobile {
+        display: none;
+    }
+
+    .counter-mobile {
         display: none;
     }
 

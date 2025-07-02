@@ -2,8 +2,9 @@
     display: flex;
     align-items: flex-start;
     justify-content: flex-start;
-    margin-bottom: 120px;
-    padding-top: 58px;
+    padding-bottom: 63px;
+    padding-top: 62px;
+    background-color: #EABF00;
 }
 
 .talk-p1 {
@@ -116,6 +117,7 @@ textarea.q-input-error {
 .talk-questions {
     background-color: black;
     color: white;
+    margin-top: 71px;
 }
 
 .q-name {
@@ -261,6 +263,10 @@ textarea.q-input-error {
 
     .c-content-divider {
         height: 57px;
+    }
+
+    .talk-questions {
+        margin-top: 47px;
     }
 
     .talk-video-mobile {
@@ -440,7 +446,7 @@ textarea.q-input-error {
     }
 
     .talk-p3 {
-        max-height: calc(100vh - 109px - 85px);
+        max-height: 559px;
     }
 }
 

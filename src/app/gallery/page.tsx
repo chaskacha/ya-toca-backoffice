@@ -6,11 +6,40 @@ import SafeArea from '@/components/basic/safe-area';
 import { photos } from '@/constants';
 
 const Gallery: React.FC = () => {
+    const [isMobile, setIsMobile] = React.useState(false);
     const sectionColor = '#2E585B';
     const sectionTextColor = '#FFFFFF';
     const footerColor = '#FFFFFF';
     const [selectedIndex, setSelectedIndex] = React.useState<number | null>(null);
     const currentPhoto = selectedIndex !== null ? photos[selectedIndex] : null;
+
+    // videos
+    const videoRef = React.useRef<HTMLVideoElement>(null);
+    const videoRefMobile = React.useRef<HTMLVideoElement>(null);
+    const [showOverlay, setShowOverlay] = React.useState(true);
+    const [fadeOut, setFadeOut] = React.useState(false);
+
+    const handleOverlayClick = () => {
+        setFadeOut(true);
+        setTimeout(() => {
+            setShowOverlay(false);
+            isMobile ? videoRefMobile.current?.play() : videoRef.current?.play();
+        }, 500);
+    };
+
+
+    React.useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth < 768);
+        };
+
+        checkMobile(); // Initial check
+
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
 
     const goPrev = () => {
         if (selectedIndex !== null && selectedIndex > 0) {
@@ -70,6 +99,40 @@ const Gallery: React.FC = () => {
                             </>
                         </SafeArea>
                     </div>
+                    <div className="talk-cabildos">
+                        <SafeArea>
+                            <>
+                                {!isMobile && <div className="c-video-desktop-wrapper">
+                                    {showOverlay && (
+                                        <div
+                                            className={`video-overlay ${fadeOut ? 'hidden' : ''}`}
+                                            onClick={handleOverlayClick}
+                                        />
+                                    )}
+                                    <video
+                                        ref={videoRef}
+                                        className="c-video-desktop"
+                                        src="https://alfi-others.s3.us-east-2.amazonaws.com/habla.mp4"
+                                        controls
+                                    />
+                                </div>}
+                            </>
+                        </SafeArea>
+                    </div>
+                    {isMobile && <div className='talk-video-mobile'>
+                        {showOverlay && (
+                            <div
+                                className={`video-overlay-mobile ${fadeOut ? 'fade-out' : ''}`}
+                                onClick={handleOverlayClick}
+                            />
+                        )}
+                        <video
+                            ref={videoRefMobile}
+                            className="c-video-mobile"
+                            src="https://alfi-others.s3.us-east-2.amazonaws.com/habla.mp4"
+                            controls
+                        />
+                    </div>}
                 </>
             </Wrapper >
         </>

@@ -66,9 +66,9 @@ const Home: React.FC = () => {
                 <div className="d-flex flex-row gap w100">
                   <div className="home-fest-p1">
                     <div className="home-fest-content">
-                      Vamos a hablar de lo que nos importa, escuchar buena música, comprar local y comer rico. <span className="fw700">3 fechas, 3 ciudades.</span>
+                      Vamos a hablar de lo que nos importa, escuchar buena música, comprar local y comer rico.
                     </div>
-                    {/* <div className="home-fest-content">3 fechas, 3 ciudades.</div> */}
+                    <div className="home-fest-content fw700">3 fechas, 3 ciudades.</div>
                     <div className="home-fest-content-extra fw300">(Pásale la voz a tus reales)</div>
                   </div>
                   <div className="home-fest-p2" />

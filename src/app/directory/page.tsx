@@ -133,6 +133,8 @@ const Directory: React.FC = () => {
                                             <div className={`directory-search-arrow-forward w100 ${inputFocused ? 'focused' : ''}`} onClick={handleForwardMobile}><ForwardArrowSVG /></div>
                                         </div>
                                     </div>
+                                    <div className="counter-desktop">{(startIndex/ITEMS_PER_PAGE_DESKTOP + 1) * ITEMS_PER_PAGE_DESKTOP}/{orgs.length}</div>
+                                    <div className="counter-mobile tac">{(startIndex/ITEMS_PER_PAGE_MOBILE + 1) * ITEMS_PER_PAGE_MOBILE}/{orgs.length}</div>
                                 </>
                             </SafeArea>
                         </div>
