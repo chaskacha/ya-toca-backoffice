@@ -23,7 +23,7 @@ const Home: React.FC = () => {
   const sectionTextColor = '#000000';
   const festivalCities = [
     { id: 1, city: 'Cajamarca', link: '/festivals#cajamarca', linkMobile: '/festivals#cajamarca_mobile', bgCircle: '#0059A6', url: cajamarca_url, urlMobile: cajamarca_url_mobile },
-    { id: 2, city: 'Arequipa', link: '/festivals#arequipa', linkMobile: '/festivals#arequipa_mobile', bgCircle: '#2E585B', url: arequipa_url, urlMobile: arequipa_url_mobile },
+    // { id: 2, city: 'Arequipa', link: '/festivals#arequipa', linkMobile: '/festivals#arequipa_mobile', bgCircle: '#2E585B', url: arequipa_url, urlMobile: arequipa_url_mobile },
     { id: 3, city: 'Lima', link: '/festivals#lima', linkMobile: '/festivals#lima_mobile', bgCircle: '#E53016', url: lima_url, urlMobile: lima_url_mobile }];
 
   // const [hoveredCityId, setHoveredCityId] = React.useState<number | null>(1);
