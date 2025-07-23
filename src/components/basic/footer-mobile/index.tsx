@@ -23,7 +23,13 @@ const FooterMobile: React.FC<Props> = ({ color = COLORS.BLACK }) => {
                         </div>
                         <div className="logos-grid-mobile">
                             {logos.map((logo, index) => (
-                                <img key={index} src={logo} alt={`Logo ${index}`} className={logo.includes('Resurgir') ? 'logo-img-resurgir' : 'logo-img'} />
+                                <img key={index} src={logo} alt={`Logo ${index}`} className={logo.includes('Resurgir')
+                                    ? 'logo-img-resurgir'
+                                    : logo.includes('RPP')
+                                        ? 'logo-img-rpp'
+                                        : logo.includes('Openmind')
+                                            ? 'logo-img-openmind'
+                                            : 'logo-img'} />
                             ))}
                         </div>
                         <div style={{ height: 90 }} />

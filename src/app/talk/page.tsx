@@ -30,6 +30,12 @@ const Talk: React.FC = () => {
     3: null
   });
 
+  const [ages, setAges] = React.useState<Record<QuestionId, string>>({
+    1: '',
+    2: '',
+    3: ''
+  });
+
   const textareaRefs = {
     1: React.useRef<HTMLTextAreaElement | null>(null),
     2: React.useRef<HTMLTextAreaElement | null>(null),
@@ -117,6 +123,7 @@ const Talk: React.FC = () => {
   const submitQuestion = async (type: QuestionId) => {
     const value = questions[type];
     const fieldName = `q${type}` as 'q1' | 'q2' | 'q3';
+    const age_group = ages[type];
 
     if (!value) return;
 
@@ -127,12 +134,13 @@ const Talk: React.FC = () => {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ [fieldName]: value }),
+        body: JSON.stringify({ [fieldName]: value, age_group: age_group }),
       });
 
       console.log(await response.json());
 
       setQuestions(prev => ({ ...prev, [type]: '' }));
+      setAges(prev => ({ ...prev, [type]: '' }));
       const el = textareaRefs[type].current;
       if (el) el.style.height = 'auto';
 
@@ -198,6 +206,8 @@ const Talk: React.FC = () => {
                     textareaRef={textareaRefs[1]}
                     message={messages[1] && { ...messages[1], question: 1 }}
                     loading={loadingQuestion}
+                    edad={ages[1]}
+                    setEdad={(e) => setAges(prev => ({ ...prev, [1]: e }))}
                     questionId={1}
                   />
 
@@ -211,6 +221,8 @@ const Talk: React.FC = () => {
                     textareaRef={textareaRefs[2]}
                     message={messages[2] && { ...messages[2], question: 2 }}
                     loading={loadingQuestion}
+                    edad={ages[2]}
+                    setEdad={(e) => setAges(prev => ({ ...prev, [2]: e }))}
                     questionId={2}
                   />
 
@@ -224,6 +236,8 @@ const Talk: React.FC = () => {
                     textareaRef={textareaRefs[3]}
                     message={messages[3] && { ...messages[3], question: 3 }}
                     loading={loadingQuestion}
+                    edad={ages[3]}
+                    setEdad={(e) => setAges(prev => ({ ...prev, [3]: e }))}
                     questionId={3}
                   />
                   <div className="q-item w100 gap">
@@ -332,7 +346,7 @@ const Talk: React.FC = () => {
                     <video
                       ref={videoRef}
                       className="c-video-desktop"
-                      src="https://alfi-others.s3.us-east-2.amazonaws.com/habla.mp4"
+                      src="https://ya-toca-web-imgs.nyc3.cdn.digitaloceanspaces.com/habla.mp4"
                       controls
                     />
                   </div>}
@@ -349,7 +363,7 @@ const Talk: React.FC = () => {
               <video
                 ref={videoRefMobile}
                 className="c-video-mobile"
-                src="https://alfi-others.s3.us-east-2.amazonaws.com/habla.mp4"
+                src="https://ya-toca-web-imgs.nyc3.cdn.digitaloceanspaces.com/habla.mp4"
                 controls
               />
             </div>}

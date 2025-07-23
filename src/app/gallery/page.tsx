@@ -3,7 +3,7 @@ import React from 'react';
 import './Gallery.css';
 import Wrapper from '@/components/basic/wrapper';
 import SafeArea from '@/components/basic/safe-area';
-import { photos } from '@/constants';
+import { photos_cabildos, photos_festivals } from '@/constants';
 
 const Gallery: React.FC = () => {
     const [isMobile, setIsMobile] = React.useState(false);
@@ -11,7 +11,8 @@ const Gallery: React.FC = () => {
     const sectionTextColor = '#FFFFFF';
     const footerColor = '#FFFFFF';
     const [selectedIndex, setSelectedIndex] = React.useState<number | null>(null);
-    const currentPhoto = selectedIndex !== null ? photos[selectedIndex] : null;
+    const [selectedTab, setSelectedTab] = React.useState<'cabildos' | 'festivales'>('cabildos');
+    const currentPhoto = selectedIndex !== null ? (selectedTab === 'cabildos' ? photos_cabildos : photos_festivals)[selectedIndex] : null;
 
     // videos
     const videoRef = React.useRef<HTMLVideoElement>(null);
@@ -48,7 +49,7 @@ const Gallery: React.FC = () => {
     };
 
     const goNext = () => {
-        if (selectedIndex !== null && selectedIndex < photos.length - 1) {
+        if (selectedIndex !== null && selectedIndex < (selectedTab === 'cabildos' ? photos_cabildos.length : photos_festivals.length) - 1) {
             setSelectedIndex(selectedIndex + 1);
         }
     };
@@ -78,15 +79,26 @@ const Gallery: React.FC = () => {
                                             <button className="photo-nav left" onClick={(e) => { e.stopPropagation(); goPrev(); }}>←</button>
                                         )}
                                         <img src={currentPhoto.url} alt="Zoomed" className="photo-modal-image" />
-                                        {selectedIndex !== null && selectedIndex < photos.length - 1 && (
+                                        {selectedIndex !== null && selectedIndex < (selectedTab === 'cabildos' ? photos_cabildos.length : photos_festivals.length) - 1 && (
                                             <button className="photo-nav right" onClick={(e) => { e.stopPropagation(); goNext(); }}>→</button>
                                         )}
                                     </div>
                                 )}
-                                <div className="textWhite gallery-tab-title thunder-fw-bold-lc uppercase">Cabildos</div>
+                                <div className="d-flex flex-row gallery-titles-container">
+                                    <div className={`textWhite gallery-tab-title pointer ${selectedTab === 'cabildos' ? 'thunder-fw-bold-lc' : 'thunder-fw-lc'} uppercase`} onClick={() => setSelectedTab('cabildos')}>Cabildos</div>
+                                    <div className={`textWhite gallery-tab-title pointer ${selectedTab === 'festivales' ? 'thunder-fw-bold-lc' : 'thunder-fw-lc'} uppercase`} onClick={() => setSelectedTab('festivales')}>Festivales</div>
+                                </div>
                                 <div className="gallery-divider" />
                                 <div className="photo-grid gap w100">
-                                    {photos.map((photo, index) => (
+                                    {selectedTab === 'cabildos' ? photos_cabildos.map((photo, index) => (
+                                        <img
+                                            key={photo.id}
+                                            src={photo.url}
+                                            alt="gallery-image"
+                                            className="gallery-image mb8 pointer"
+                                            onClick={() => setSelectedIndex(index)}
+                                        />
+                                    )) : photos_festivals.map((photo, index) => (
                                         <img
                                             key={photo.id}
                                             src={photo.url}
@@ -112,7 +124,7 @@ const Gallery: React.FC = () => {
                                     <video
                                         ref={videoRef}
                                         className="c-video-desktop"
-                                        src="https://alfi-others.s3.us-east-2.amazonaws.com/habla.mp4"
+                                        src="https://ya-toca-web-imgs.nyc3.cdn.digitaloceanspaces.com/habla.mp4"
                                         controls
                                     />
                                 </div>}
@@ -129,7 +141,7 @@ const Gallery: React.FC = () => {
                         <video
                             ref={videoRefMobile}
                             className="c-video-mobile"
-                            src="https://alfi-others.s3.us-east-2.amazonaws.com/habla.mp4"
+                            src="https://ya-toca-web-imgs.nyc3.cdn.digitaloceanspaces.com/habla.mp4"
                             controls
                         />
                     </div>}

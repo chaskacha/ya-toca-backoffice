@@ -5,6 +5,7 @@ import Wrapper from '@/components/basic/wrapper';
 import SafeArea from '@/components/basic/safe-area';
 import { BackArrowSVG, FbSVG, ForwardArrowSVG, IgSVG, SearchSVG } from '@/constants/svgs';
 import { companies } from '@/constants';
+import AllOrgsPopUp from '@/components/sections/gallery/AllOrgsPopUp';
 
 const Directory: React.FC = () => {
     const [inputFocused, setInputFocused] = React.useState<boolean>(false);
@@ -15,6 +16,7 @@ const Directory: React.FC = () => {
     const ITEMS_PER_PAGE_DESKTOP = 4;
     const ITEMS_PER_PAGE_MOBILE = 1;
     const [startIndex, setStartIndex] = React.useState(0);
+    const [openModal, setOpenModal] = React.useState<boolean>(false);
 
     const handleSearch = (e: any) => {
         const value = e.target.value;
@@ -22,7 +24,7 @@ const Directory: React.FC = () => {
 
         if (value.length >= 3) {
             const filtered = companies.filter(c =>
-                c.keywords?.toLowerCase().includes(value.toLowerCase()) || c.name_company.toLowerCase().includes(value.toLowerCase())
+                c.keywords?.includes(value.toLowerCase()) || c.name_company.toLowerCase().includes(value.toLowerCase())
             );
             setOrgs(filtered);
             setStartIndex(0);
@@ -56,7 +58,7 @@ const Directory: React.FC = () => {
     React.useEffect(() => {
         if (search.length >= 3) {
             const filtered = companies.filter(c =>
-                c.keywords?.toLowerCase().includes(search.toLowerCase()) || c.name_company.toLowerCase().includes(search.toLowerCase())
+                c.keywords?.includes(search.toLowerCase()) || c.name_company.toLowerCase().includes(search.toLowerCase())
             );
             setOrgs(filtered);
         } else {
@@ -74,6 +76,7 @@ const Directory: React.FC = () => {
             >
                 <>
                     <>
+                        {openModal && <AllOrgsPopUp close={() => setOpenModal(false)} />}
                         <div className="directory-header">
                             <SafeArea>
                                 <div className='d-flex flex-row w100 gap'>
@@ -87,8 +90,8 @@ const Directory: React.FC = () => {
                                     <div className='directory-p2' />
                                 </div>
                             </SafeArea>
-                            <img src="https://alfi-others.s3.us-east-2.amazonaws.com/bg_directory.png" alt="directory bg" className="directory-header-bg" />
-                            <img src="https://alfi-others.s3.us-east-2.amazonaws.com/bg_directory_mobile.png" alt="directory bg mobile" className="directory-header-bg-mobile" />
+                            <img src="https://ya-toca-web-imgs.nyc3.cdn.digitaloceanspaces.com/bg/bg_directory.png" alt="directory bg" className="directory-header-bg" />
+                            <img src="https://ya-toca-web-imgs.nyc3.cdn.digitaloceanspaces.com/bg/bg_directory_mobile.png" alt="directory bg mobile" className="directory-header-bg-mobile" />
                         </div>
                         <div className="directory-footer-text">
                             <SafeArea>
@@ -133,8 +136,11 @@ const Directory: React.FC = () => {
                                             <div className={`directory-search-arrow-forward w100 ${inputFocused ? 'focused' : ''}`} onClick={handleForwardMobile}><ForwardArrowSVG /></div>
                                         </div>
                                     </div>
-                                    <div className="counter-desktop">{(startIndex/ITEMS_PER_PAGE_DESKTOP + 1) * ITEMS_PER_PAGE_DESKTOP}/{orgs.length}</div>
-                                    <div className="counter-mobile tac">{(startIndex/ITEMS_PER_PAGE_MOBILE + 1) * ITEMS_PER_PAGE_MOBILE}/{orgs.length}</div>
+                                    <div className="d-flex flex-row gap10 aic mt12">
+                                        <div className="counter-desktop">{(startIndex / ITEMS_PER_PAGE_DESKTOP + 1) * ITEMS_PER_PAGE_DESKTOP}/{orgs.length}</div>
+                                        <div className="counter-mobile tac">{(startIndex / ITEMS_PER_PAGE_MOBILE + 1) * ITEMS_PER_PAGE_MOBILE}/{orgs.length}</div>
+                                        <div className="fw700 fs16 pointer" onClick={() => setOpenModal(true)}>Ver todo</div>
+                                    </div>
                                 </>
                             </SafeArea>
                         </div>

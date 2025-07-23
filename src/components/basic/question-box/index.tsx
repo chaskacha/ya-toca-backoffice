@@ -10,6 +10,8 @@ type QuestionBoxProps = {
   message: { type: 'success' | 'error'; question: 1 | 2 | 3 } | null;
   loading: boolean;
   questionId: 1 | 2 | 3;
+  edad: string;
+  setEdad: (edad: string) => void;
 }
 
 const QuestionBox: React.FC<QuestionBoxProps> = ({
@@ -21,6 +23,8 @@ const QuestionBox: React.FC<QuestionBoxProps> = ({
   message,
   loading,
   questionId,
+  edad,
+  setEdad,
 }) => {
   return (
     <div className="q-item w100 gap">
@@ -50,11 +54,24 @@ const QuestionBox: React.FC<QuestionBoxProps> = ({
         {message && message.question === questionId && message.type === 'error' && (
           <div className="q-error-msg">Se produjo un error. Por favor, vuelve enviar el mensaje.</div>
         )}
+        <div className="mt8">
+          <select
+            id="edad-select"
+            value={edad}
+            onChange={(e) => setEdad(e.target.value)}
+            className="q-dropdown"
+          >
+            <option value="" disabled hidden>EDAD</option>
+            <option value="16-29">16-29</option>
+            <option value="30-45">30-45</option>
+            <option value="46+">46 a más</option>
+          </select>
+        </div>
         {value && (
           <button
-            disabled={loading}
+            disabled={loading || !edad}
             onClick={onSubmit}
-            className={`talk-save-button pointer thunder-fw-bold-lc uppercase ${loading ? 'disabled' : ''}`}
+            className={`talk-save-button pointer thunder-fw-bold-lc uppercase ${loading || !edad ? 'disabled' : ''}`}
           >
             Enviar mensaje
           </button>

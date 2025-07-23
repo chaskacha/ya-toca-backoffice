@@ -120,8 +120,19 @@ body {
   gap: 6px;
 }
 
+.gap10 {
+  gap: 10px;
+}
+
 .gap24 {
   gap: 24px;
+}
+
+.gap60 {
+  gap: 60px;
+}
+.gap120 {
+  gap: 120px;
 }
 
 .d-flex {
@@ -266,6 +277,10 @@ body {
 
 .mt10 {
   margin-top: 10px;
+}
+
+.mt12 {
+  margin-top: 12px;
 }
 
 .mt16 {

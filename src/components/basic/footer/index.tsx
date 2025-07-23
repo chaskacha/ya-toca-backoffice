@@ -40,7 +40,7 @@ const Footer: React.FC<Props> = ({ color = COLORS.BLACK }) => {
                                 href='https://www.tiktok.com/@yatoca.pe?_t=ZM-8xEYtCXpEbW&_r=1'
                                 target='_blank'
                                 rel='noopener noreferrer'><IconTikTok color={color === COLORS.BLACK ? COLORS.WHITE : COLORS.BLACK} /> Tik Tok</a>
-                                <a
+                            <a
                                 className='fs16 fw400 footer-networks-item'
                                 href='https://wa.me/51922824173'
                                 target='_blank'
@@ -49,7 +49,13 @@ const Footer: React.FC<Props> = ({ color = COLORS.BLACK }) => {
                     </div>
                     <div className="logos-grid">
                         {logos.map((logo, index) => (
-                            <img key={index} src={logo} alt={`Logo ${index}`} className={logo.includes('Resurgir') ? 'logo-img-resurgir' : 'logo-img'} />
+                            <img key={index} src={logo} alt={`Logo ${index}`} className={logo.includes('Resurgir')
+                                ? 'logo-img-resurgir'
+                                : logo.includes('RPP')
+                                    ? 'logo-img-rpp'
+                                    : logo.includes('Openmind')
+                                    ? 'logo-img-openmind'
+                                    : 'logo-img'} />
                         ))}
                     </div>
                 </>

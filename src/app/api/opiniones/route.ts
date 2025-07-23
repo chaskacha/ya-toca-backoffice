@@ -6,7 +6,7 @@ export const POST = async (request: Request) => {
     console.log("data ==> ", data)
 
     // Validar que al menos una pregunta esté completa
-    const { q1, q2, q3 } = data
+    const { q1, q2, q3, age_group } = data
     const hasAtLeastOneQuestion = [q1, q2, q3].some((q) => q && q.trim() !== "")
 
     if (!hasAtLeastOneQuestion) {
@@ -27,8 +27,8 @@ export const POST = async (request: Request) => {
 
     // Insertar en la base de datos usando TIMESTAMP
     await query(
-      `INSERT INTO opinionesweb (q1, q2, q3, fecha, nombre, ciudad, genero, mensaje)
-       VALUES ($1, $2, $3, $4::timestamp, $5, $6, $7, $8)`,
+      `INSERT INTO opinionesweb (q1, q2, q3, fecha, nombre, ciudad, genero, mensaje, age_group)
+       VALUES ($1, $2, $3, $4::timestamp, $5, $6, $7, $8, $9)`,
       [
         q1 || null,
         q2 || null,
@@ -38,6 +38,7 @@ export const POST = async (request: Request) => {
         null, // ciudad
         null, // genero
         null, // mensaje
+        age_group,
       ],
     )
 

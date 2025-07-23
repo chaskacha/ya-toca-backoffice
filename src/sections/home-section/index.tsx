@@ -7,7 +7,6 @@ const HomeSection: React.FC = () => {
         <div className='home-section-wrapper'>
             <div className='home-section'>
                 <div className="home-section-video" />
-                {/* <video className="home-section-video" src="https://alfi-others.s3.us-east-2.amazonaws.com/home.mp4" autoPlay muted playsInline /> */}
                 <div className="flex1 w100" style={{ backgroundColor: 'transparent', height: 1 }} />
                 <div className='home-section-phrase'>
                     <div className='fw400 home-section-phrase-title'>

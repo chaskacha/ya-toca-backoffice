@@ -49,6 +49,14 @@
     width: 65px;
 }
 
+.logo-img-rpp {
+    width: 57px;
+}
+
+.logo-img-openmind {
+    height: 52px;
+}
+
 @media (min-width: 0px) and (max-width: 1000px) {
     .footer {
         display: none;

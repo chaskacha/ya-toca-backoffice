@@ -78,6 +78,10 @@ textarea.q-input {
     color: #fff;
 }
 
+.q-dropdown:focus-visible {
+    outline: none;
+}
+
 textarea.q-input::placeholder {
     color: #525252;
 }
@@ -291,7 +295,7 @@ textarea.q-input-error {
         left: 0;
         width: 100%;
         height: 782px;
-        background-image: url('https://alfi-others.s3.us-east-2.amazonaws.com/bg_video_habla_mobile.png');
+        background-image: url('https://ya-toca-web-imgs.nyc3.cdn.digitaloceanspaces.com/bg/bg_video_habla_mobile.png');
         background-size: cover;
         background-position: center;
         z-index: 2;
@@ -403,7 +407,7 @@ textarea.q-input-error {
         left: 0;
         width: 100%;
         height: 100%;
-        background-image: url('https://alfi-others.s3.us-east-2.amazonaws.com/bg_talk.png');
+        background-image: url('https://ya-toca-web-imgs.nyc3.cdn.digitaloceanspaces.com/bg/bg_talk.png');
         background-size: cover;
         background-position: center;
         z-index: 2;

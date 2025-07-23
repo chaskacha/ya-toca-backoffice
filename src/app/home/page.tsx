@@ -147,8 +147,8 @@ const Home: React.FC = () => {
             </SafeArea> */}
           </div>
           <div className="warmup" style={{ background: 'black' }}>
-            <video src="https://alfi-others.s3.us-east-2.amazonaws.com/playlist.mp4" className="w100 home-img-desktop" autoPlay loop muted playsInline />
-            <video src="https://alfi-others.s3.us-east-2.amazonaws.com/playlist.mp4" className="w100 home-img-mobile" autoPlay loop muted playsInline />
+            <video src="https://ya-toca-web-imgs.nyc3.cdn.digitaloceanspaces.com/playlist.mp4" className="w100 home-img-desktop" autoPlay loop muted playsInline />
+            <video src="https://ya-toca-web-imgs.nyc3.cdn.digitaloceanspaces.com/playlist.mp4" className="w100 home-img-mobile" autoPlay loop muted playsInline />
             <div className="warmup-content">
               <div className="fs96 uppercase mb14 pointer thunder-fw-bold-lc textWhite">Para entrar en calor</div>
               <a href="https://www.youtube.com/playlist?list=PLw7BjN829CSuxtB3-jJCnTsKkvIItJWyX" target="_blank" className="uppercase fs16 pointer fw700 textWhite warmup-btn">Playlist Ya Toca</a>

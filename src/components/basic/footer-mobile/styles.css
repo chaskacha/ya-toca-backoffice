@@ -50,11 +50,20 @@
     width: 65px;
 }
 
+.logo-img-rpp {
+    width: 57px;
+}
+
+.logo-img-openmind {
+    height: 52px;
+}
+
 @media (min-width: 1000px) {
     .footer-mobile {
         display: none;
     }
 }
+
 @media (min-width: 1000px) {
     .logos-grid-mobile {
         display: none;
