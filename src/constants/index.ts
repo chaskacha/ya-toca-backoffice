@@ -404,3 +404,116 @@ export const logos_white = [
   'https://ya-toca-web-imgs.nyc3.cdn.digitaloceanspaces.com/footer_white/RPP.png'
 
 ]
+export const topics = [
+  {
+    id: 1,
+    text: 'Acceso a la educación superior y becas',
+    percentage: 58,
+    num_mentions: 198,
+    summary: 'Proporciona una visión general de los datos, destacando las características principales y tendencias.',
+    age: ['16-29'],
+    gender: ['Mujer'],
+    region: ['Cusco'],
+    medio: ['Whatsapp']
+  },
+  {
+    id: 2,
+    text: 'Violencia de género y protección de víctimas',
+    percentage: 45,
+    num_mentions: 173,
+    summary: 'Se analizan las medidas actuales y las necesidades urgentes para prevenir y atender casos de violencia.',
+    age: ['16-29'],
+    gender: ['Mujer'],
+    region: ['Cusco'],
+    medio: ['Whatsapp']
+  },
+  {
+    id: 3,
+    text: 'Salud mental y bienestar emocional',
+    percentage: 52,
+    num_mentions: 185,
+    summary: 'Resumen de las preocupaciones sobre la salud mental, especialmente en jóvenes y población vulnerable.',
+    age: ['16-29'],
+    gender: ['Mujer'],
+    region: ['Cusco'],
+    medio: ['Whatsapp']
+  },
+  {
+    id: 4,
+    text: 'Empleo juvenil y oportunidades laborales',
+    percentage: 49,
+    num_mentions: 160,
+    summary: 'Se destacan los principales retos que enfrentan los jóvenes para acceder a empleos dignos.',
+    age: ['16-29'],
+    gender: ['Mujer'],
+    region: ['Cusco'],
+    medio: ['Whatsapp']
+  },
+  {
+    id: 5,
+    text: 'Cambio climático y políticas ambientales',
+    percentage: 38,
+    num_mentions: 142,
+    summary: 'Opiniones sobre cómo mitigar los efectos del cambio climático desde lo local.',
+    age: ['16-29'],
+    gender: ['Mujer'],
+    region: ['Cusco'],
+    medio: ['Whatsapp']
+  },
+  {
+    id: 6,
+    text: 'Transporte público y movilidad urbana',
+    percentage: 41,
+    num_mentions: 150,
+    summary: 'Los participantes mencionan la necesidad de mejorar el acceso, seguridad y eficiencia del transporte.',
+    age: ['16-29'],
+    gender: ['Mujer'],
+    region: ['Cusco'],
+    medio: ['Whatsapp']
+  },
+  {
+    id: 7,
+    text: 'Derechos de pueblos indígenas y comunidades rurales',
+    percentage: 36,
+    num_mentions: 120,
+    summary: 'Demandas de inclusión y respeto a los derechos culturales y territoriales.',
+    age: ['16-29'],
+    gender: ['Mujer'],
+    region: ['Cusco'],
+    medio: ['Whatsapp']
+  },
+  {
+    id: 8,
+    text: 'Acceso a servicios básicos: agua, luz y saneamiento',
+    percentage: 47,
+    num_mentions: 168,
+    summary: 'Resumen de los desafíos para garantizar servicios básicos en zonas marginadas.',
+    age: ['16-29'],
+    gender: ['Mujer'],
+    region: ['Cusco'],
+    medio: ['Whatsapp']
+  },
+  {
+    id: 9,
+    text: 'Inseguridad ciudadana y violencia urbana',
+    percentage: 53,
+    num_mentions: 190,
+    summary: 'Refleja la preocupación por el aumento de la criminalidad y la falta de respuesta estatal.',
+    age: ['16-29'],
+    gender: ['Mujer'],
+    region: ['Cusco'],
+    medio: ['Whatsapp']
+  },
+  {
+    id: 10,
+    text: 'Transparencia y lucha contra la corrupción',
+    percentage: 50,
+    num_mentions: 175,
+    summary: 'Se identifican demandas para una mayor rendición de cuentas y vigilancia ciudadana.',
+    age: ['16-29'],
+    gender: ['Mujer'],
+    region: ['Cusco'],
+    medio: ['Whatsapp']
+  }
+]
+export const example_summary = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Proin sit amet vehicula nunc, at vestibulum tortor. Nam egestas suscipit lacus. Phasellus purus sapien, semper eu finibus non, vulputate a mi. Quisque sollicitudin dolor velit, at vulputate ligula malesuada at. Phasellus feugiat rhoncus justo, et consequat elit. In felis dui, mollis suscipit orci at, posuere commodo massa. Curabitur nibh tellus, feugiat at sem nec, eleifend placerat nisi. Vivamus blandit scelerisque placerat. In ornare, magna ac commodo aliquet, urna massa congue sapien, id ullamcorper nisl eros in ex. Integer suscipit dictum nunc vitae posuere. Vestibulum consequat ut enim eget accumsan. Nulla turpis sapien, ornare nec finibus eu, ultrices ut felis. Donec scelerisque nisl sed lacus dapibus, eget gravida dolor euismod.'

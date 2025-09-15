@@ -1,0 +1,108 @@
+.overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, .3);
+    display: grid;
+    place-items: center;
+    z-index: 1000;
+}
+
+.card,
+.cardSmall {
+    background: #fff;
+    border-radius: 5px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .08);
+    padding: 20px 24px;
+    width: min(640px, 92vw);
+    position: relative;
+}
+
+.cardSmall {
+    width: min(420px, 92vw);
+    text-align: center;
+}
+
+.title {
+    font-size: 24px;
+    font-weight: 700;
+    margin: 4px 0 8px;
+    color: #111;
+}
+
+.danger {
+    color: #C80C0C;
+}
+
+.success {
+    color: #36976E;
+}
+
+.successTitle {
+    font-size: 28px;
+    color: #36976E;
+    margin: 8px 0;
+    font-weight: 700;
+}
+
+.desc {
+    color: #16151C;
+    line-height: 1.5;
+}
+
+.descCenter {
+    color: #16151C;
+    line-height: 1.5;
+    margin-top: 4px;
+    font-size: 16px;
+}
+
+.actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 8px;
+}
+
+.btn {
+    padding: 8px 14px;
+    border-radius: 5px;
+    border: 1px solid #d9d9d9;
+    background: #fff;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.btn-danger {
+    background: #C80C0C;
+    border-color: #C80C0C;
+    color: #fff;
+}
+
+.btn-success {
+    background: #36976E;
+    border-color: #36976E;
+    color: #fff;
+}
+
+.close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    border: 0;
+    background: transparent;
+    font-size: 22px;
+    cursor: pointer;
+    color: #666;
+}
+
+.check {
+    width: 48px;
+    height: 48px;
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    background: #e8f5e9;
+    color: #2e7d32;
+    font-size: 28px;
+    margin: 6px auto 10px;
+}

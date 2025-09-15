@@ -1,17 +1,17 @@
 'use client';
 import React, { JSX } from 'react';
 import './styles.css';
-import { COLORS } from '../../../constants/texts';
 
 interface Props {
     children: JSX.Element;
-    color?: string;
+    mv?: number;
 }
-const SafeArea: React.FC<Props> = ({ children, color = COLORS.WHITE }) => {
+const SafeArea: React.FC<Props> = ({ children, mv = 60 }) => {
     return (
-        <div className="safe-area w100"
-        //  style={{ backgroundColor: color }}
-        >{children}</div>
+        <div className="safe-area w100">
+            <div style={{ marginTop: mv }} />
+            {children}
+        </div>
     )
 }
 export default SafeArea;

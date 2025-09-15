@@ -1,4 +1,4 @@
-import pkg from 'pg';
+import pkg, { PoolClient } from 'pg';
 const { Pool } = pkg;
 import dotenv from 'dotenv';
 
@@ -19,7 +19,7 @@ async function initializePool() {
 }
 
 // Variable para almacenar el pool de conexiones
-let pool: typeof Pool.prototype;
+export let pool: typeof Pool.prototype;
 
 // Función para obtener el pool de conexiones, inicializándolo si es necesario
 async function getPool() {
@@ -54,3 +54,18 @@ export async function query(text: string, params: any[] = []) {
     client.release();
   }
 }
+
+export const withTransaction = async <T>(fn: (client: PoolClient) => Promise<T>): Promise<T> => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await fn(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+};

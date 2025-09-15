@@ -6,7 +6,7 @@ export default function RootRedirect() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace('/home');
+    router.replace('/dashboard');
   }, [router]);
 
   return null;

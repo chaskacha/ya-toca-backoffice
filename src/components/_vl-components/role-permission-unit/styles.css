@@ -1,0 +1,25 @@
+.role-permission-container {
+    border: 1px solid #D6D6D6;
+    padding: 10px 20px;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    height: 60px;
+    cursor: pointer;
+    margin-bottom: 10px;
+}
+.role-permission-container:hover {
+    background-color: #E3EEE9CC;
+    border-color: #5AC599;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+}
+.role-permission-container.active {
+    background-color: #E3EEE9CC;
+    border-color: #5AC599;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+}
