@@ -1,5 +1,5 @@
 'use client'
-import React from 'react'
+import React, { Suspense } from 'react'
 import './styles.css'
 import SafeArea from '@/components/basic/safe-area'
 import { useSearchParams } from 'next/navigation'
@@ -9,7 +9,7 @@ import Wrapper from '@/components/basic/wrapper'
 import { BackArrowSVG } from '@/constants/svgs'
 import { useRouter } from 'next/navigation'
 
-const TopicsComparison: React.FC = () => {
+const TopicsComparisonClient: React.FC = () => {
     const router = useRouter()
     const searchParams = useSearchParams()
     const selection1 = searchParams.get('selection1');
@@ -87,5 +87,12 @@ const TopicsComparison: React.FC = () => {
             </div>
         </Wrapper>
     )
+}
+function TopicsComparison() {
+    return (
+        <Suspense fallback={null}>
+            <TopicsComparisonClient />
+        </Suspense>
+    );
 }
 export default TopicsComparison

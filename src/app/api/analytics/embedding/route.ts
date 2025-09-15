@@ -1,15 +1,15 @@
 import { build_topic_text, l2_normalize, sha256 } from "@/constants/functions";
-import { get_embedding, EMBEDDING_MODEL, EMBEDDING_PIPELINE_VERSION } from "@/constants/openai";
-import { EmbeddedTopic, Topic, topics } from "@/constants/predefined_themes";
+import { EMBEDDING_MODEL, EMBEDDING_PIPELINE_VERSION, get_embeddings } from "@/constants/openai";
+import { embedded_topics, EmbeddedTopic, Topic } from "@/constants/predefined_themes";
 
 export const POST = async (req: Request) => {
     try {
         async function embedOne(t: Topic): Promise<EmbeddedTopic> {
             const built = build_topic_text(t);
 
-            const resp = await get_embedding(built);
+            const resp = await get_embeddings([built]);
 
-            const raw = resp as number[];
+            const raw = resp[0] as number[];
             const { embedding, norm } = l2_normalize(raw);
 
             return {
@@ -48,7 +48,7 @@ export const POST = async (req: Request) => {
             return results;
         }
 
-        const embedded = await embedAll(topics);
+        const embedded = await embedAll(embedded_topics);
 
         // For now: print a compact JSON you can capture or pipe to a file
         const out = {

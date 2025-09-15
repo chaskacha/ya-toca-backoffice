@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { Suspense } from 'react'
 import './styles.css'
 import Wrapper from '@/components/basic/wrapper'
 import SafeArea from '@/components/basic/safe-area'
@@ -10,7 +10,7 @@ import { useRouter, useParams, useSearchParams } from 'next/navigation'
 import RecordsTable from './components/table/RecordsTable'
 
 
-const TopicDetail: React.FC = () => {
+const TopicDetailClient: React.FC = () => {
     const topic = useSearchParams().get('name');
     console.log(topic);
     const router = useRouter();
@@ -120,5 +120,13 @@ const TopicDetail: React.FC = () => {
             </div>
         </Wrapper>
     )
+}
+
+function TopicDetail() {
+    return (
+        <Suspense fallback={null}>
+            <TopicDetailClient />
+        </Suspense>
+    );
 }
 export default TopicDetail

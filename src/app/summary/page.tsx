@@ -1,5 +1,5 @@
 'use client'
-import React from 'react'
+import React, { Suspense } from 'react'
 import './styles.css'
 import SafeArea from '@/components/basic/safe-area'
 import { useSearchParams } from 'next/navigation'
@@ -9,7 +9,7 @@ import { BackArrowSVG } from '@/constants/svgs'
 import { useRouter } from 'next/navigation'
 import SummaryChat from '@/components/basic/summary-chat'
 
-const Summary: React.FC = () => {
+const SummaryClient: React.FC = () => {
     const router = useRouter()
     const searchParams = useSearchParams()
     const select1 = searchParams.get('selection1');
@@ -91,5 +91,12 @@ const Summary: React.FC = () => {
             </div>
         </Wrapper>
     )
+}
+function Summary() {
+    return (
+        <Suspense fallback={null}>
+            <SummaryClient />
+        </Suspense>
+    );
 }
 export default Summary
