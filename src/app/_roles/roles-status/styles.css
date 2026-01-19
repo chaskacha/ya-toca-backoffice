@@ -1,0 +1,123 @@
+.filter-root {
+    position: relative;
+    display: inline-block;
+}
+
+.filter-trigger {
+    border: 1px solid #0f7a50;
+    color: #0D0D0D;
+    background: #fff;
+    font-size: 14px;
+    padding: 8px 10px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    height: 40px;
+}
+
+.icon {
+    font-size: 12px;
+}
+
+.filter-popover {
+    position: absolute;
+    z-index: 1;
+    right: 0;
+    top: 42px;
+    width: 360px;
+    max-width: 92vw;
+    background: #fff;
+    border: 1px solid #1a8f68;
+    border-radius: 5px;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, .08);
+    padding: 12px;
+}
+
+.fp-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 4px 12px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.fp-title {
+    font-weight: 600;
+    font-size: 16px;
+}
+
+.fp-close {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+}
+
+.fp-row {
+    padding: 12px 4px;
+}
+
+.fp-row-left {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.fp-label {
+    font-weight: 600;
+    color: #555;
+    font-size: 14px;
+}
+
+.fp-clear {
+    background: none;
+    border: none;
+    color: #36976E;
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.fp-select-label {
+    display: block;
+}
+
+.fp-select-title {
+    display: block;
+    color: #6b7280;
+    font-size: 12px;
+    margin-bottom: 6px;
+}
+
+.fp-select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    background: #fff;
+}
+
+.fp-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+    padding-top: 8px;
+}
+
+.btn {
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-weight: 600;
+}
+
+.btn.ghost {
+    border: 1px solid #d1d5db;
+    background: #fff;
+}
+
+.btn.primary {
+    background: #36976E;
+    color: #fff;
+    border: 1px solid #36976E;
+}

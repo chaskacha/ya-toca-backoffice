@@ -1,0 +1,299 @@
+.new-role-page {
+    padding: 16px;
+}
+
+.headerRow {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.backBtn {
+    background: none;
+    border: none;
+    color: #157f5b;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.title {
+    font-size: 28px;
+    margin: 0;
+}
+
+.layout {
+    display: flex;
+    gap: 16px;
+}
+
+.leftCol {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+}
+
+.new-role-card {
+    padding: 16px;
+    width: 100%;
+}
+
+.cardForm {
+    background-color: #FAFAFA;
+    border-radius: 8px;
+}
+
+.sectionTitle {
+    font-weight: 600;
+    margin-bottom: 16px;
+}
+
+.label {
+    display: block;
+    font-size: 14px;
+    color: #444;
+    margin-bottom: 6px;
+    margin-top: 8px;
+}
+
+.input {
+    width: 100%;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 14px;
+}
+
+.textarea {
+    min-height: 96px;
+    resize: vertical;
+}
+
+.permissionRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border: 1px solid #D6D6D6;
+    border-radius: 8px;
+    padding: 20px;
+    height: 60px;
+    cursor: pointer;
+}
+
+.permissionRow:hover {
+    background-color: #E3EEE9CC;
+    border-color: #5AC599;
+}
+
+.permActive {
+    background-color: #E3EEE9CC;
+    border-color: #5AC599;
+}
+
+.permTextBlock {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.permName {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.permBlurb {
+    color: #424242;
+    font-size: 12px;
+}
+
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 26px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #d9d9d9;
+    transition: .2s;
+    border-radius: 20px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 3px;
+    bottom: 3px;
+    background: white;
+    transition: .2s;
+    border-radius: 50%;
+}
+
+.switch input:checked+.slider {
+    background: #18a166;
+}
+
+.switch input:checked+.slider:before {
+    transform: translateX(18px);
+}
+
+.new-role-actionsrow {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.btnGhost {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 8px 14px;
+    cursor: pointer;
+}
+
+.btnPrimary {
+    background: #18a166;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    padding: 9px 16px;
+    cursor: pointer;
+}
+
+.rightCol {
+    position: sticky;
+    top: 12px;
+    height: fit-content;
+    border: 1px solid #e6e6e6;
+    border-radius: 14px;
+    background: #fff;
+    padding: 12px;
+    opacity: .5;
+    pointer-events: none;
+    transition: .15s;
+}
+
+.rightColOpen {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.sideCard {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.sideHeader {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.sideTitle {
+    font-weight: 700;
+    font-size: 18px;
+}
+
+.sideSub {
+    color: #666;
+    font-size: 12px;
+}
+
+.iconBtn {
+    border: none;
+    background: #f1f1f1;
+    border-radius: 10px;
+    padding: 4px 8px;
+    cursor: pointer;
+}
+
+.presetRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+}
+
+.presetLabel {
+    font-size: 13px;
+    color: #444;
+}
+
+.presetBtns {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.pillBtn {
+    border: 1px solid #ddd;
+    background: #fff;
+    border-radius: 999px;
+    padding: 5px 10px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.pillBtn:hover {
+    background: #f6f6f6;
+}
+
+.actionsList {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.actionRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid #eee;
+    border-radius: 10px;
+    padding: 8px 10px;
+}
+
+.actionLabel {
+    flex: 1;
+}
+
+.check {
+    color: #18a166;
+    font-weight: 700;
+}
+
+.sideEmpty {
+    color: #777;
+    font-size: 14px;
+    padding: 8px;
+    text-align: center;
+}
+
+/* Responsive */
+@media (max-width: 1000px) {
+    .layout {
+        grid-template-columns: 1fr;
+    }
+
+    .rightCol {
+        position: relative;
+        top: 0;
+    }
+}
