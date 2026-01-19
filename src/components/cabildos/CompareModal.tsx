@@ -27,6 +27,11 @@ function toggle(list: string[], v: string) {
     return list.includes(v) ? list.filter((x) => x !== v) : [...list, v];
 }
 
+// NEW: remove a value from a list
+function remove(list: string[], v: string) {
+    return list.filter((x) => x !== v);
+}
+
 export default function CompareModal({
     open,
     onClose,
@@ -52,7 +57,6 @@ export default function CompareModal({
 
     React.useEffect(() => {
         if (!open) return;
-        // reset each time modal opens (optional)
         setDimension("age_group");
         setAValues([]);
         setBValues([]);
@@ -84,6 +88,27 @@ export default function CompareModal({
     };
 
     const options = getOptions();
+
+    // ✅ Ensure no overlap
+    const onToggleA = (v: string) => {
+        setAValues((prevA) => {
+            const nextA = uniq(toggle(prevA, v));
+            return nextA;
+        });
+
+        // If we add/remove in A, ensure B doesn't contain it.
+        setBValues((prevB) => remove(prevB, v));
+    };
+
+    const onToggleB = (v: string) => {
+        setBValues((prevB) => {
+            const nextB = uniq(toggle(prevB, v));
+            return nextB;
+        });
+
+        // If we add/remove in B, ensure A doesn't contain it.
+        setAValues((prevA) => remove(prevA, v));
+    };
 
     const canApply = aValues.length > 0 && bValues.length > 0;
 
@@ -181,18 +206,8 @@ export default function CompareModal({
                 <div style={{ height: 16 }} />
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                    <Column
-                        title="Selección 1"
-                        options={options}
-                        values={aValues}
-                        onToggle={(v) => setAValues((p) => uniq(toggle(p, v)))}
-                    />
-                    <Column
-                        title="Selección 2"
-                        options={options}
-                        values={bValues}
-                        onToggle={(v) => setBValues((p) => uniq(toggle(p, v)))}
-                    />
+                    <Column title="Selección 1" options={options} values={aValues} onToggle={onToggleA} />
+                    <Column title="Selección 2" options={options} values={bValues} onToggle={onToggleB} />
                 </div>
 
                 <div style={{ height: 18 }} />
