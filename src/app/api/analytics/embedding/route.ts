@@ -1,5 +1,5 @@
 import { build_topic_text, l2_normalize, sha256 } from "@/constants/functions";
-import { EMBEDDING_MODEL, EMBEDDING_PIPELINE_VERSION, get_embeddings } from "@/constants/open";
+import { EMBEDDING_MODEL, EMBEDDING_PIPELINE_VERSION, get_embeddings } from "@/constants/openai";
 import { embedded_topics, EmbeddedTopic, Topic } from "@/constants/predefined_themes";
 
 export const POST = async (req: Request) => {

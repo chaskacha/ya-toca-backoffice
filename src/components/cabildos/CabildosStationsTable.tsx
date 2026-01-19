@@ -287,7 +287,7 @@ export default function CabildosStationsTable() {
                         disabled={page <= 1}
                         style={{ height: 36, padding: "0 10px", borderRadius: 8, border: "1px solid #ddd", background: "#fff" }}
                     >
-                        Prev
+                        Anterior
                     </button>
                     <div style={{ minWidth: 120, textAlign: "center" }}>
                         Página {page} / {totalPages}
@@ -297,7 +297,7 @@ export default function CabildosStationsTable() {
                         disabled={page >= totalPages}
                         style={{ height: 36, padding: "0 10px", borderRadius: 8, border: "1px solid #ddd", background: "#fff" }}
                     >
-                        Next
+                        Siguiente
                     </button>
                 </div>
             </div>

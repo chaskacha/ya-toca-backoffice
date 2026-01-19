@@ -35,7 +35,7 @@ select {
 @font-face {
   font-family: "BricolageGrotesque-Regular";
   src: url("../assets/fonts/BricolageGrotesque-Regular.ttf") format("truetype");
-  font-weight: normal;
+  font-weight: 300;
   font-style: normal;
 }
 
@@ -56,7 +56,7 @@ select {
 @font-face {
   font-family: "BricolageGrotesque-Light";
   src: url("../assets/fonts/BricolageGrotesque-Light.ttf") format("truetype");
-  font-weight: normal;
+  font-weight: 300;
   font-style: normal;
 }
 

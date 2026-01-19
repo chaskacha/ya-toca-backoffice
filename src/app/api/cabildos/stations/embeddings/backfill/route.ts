@@ -4,7 +4,7 @@ import {
     get_embeddings,
     EMBEDDING_MODEL,
     EMBEDDING_PIPELINE_VERSION,
-} from "@/constants/open";
+} from "@/constants/openai";
 import { toPgVectorLiteral } from "@/constants/functions";
 
 const STATIONS = [11, 12, 13, 14];

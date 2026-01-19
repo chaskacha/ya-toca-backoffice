@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
-import { get_embeddings } from '@/constants/open';
+import { get_embeddings } from '@/constants/openai';
 import { normForLike } from '../process/helpers';
 
 export async function GET(req: NextRequest) {

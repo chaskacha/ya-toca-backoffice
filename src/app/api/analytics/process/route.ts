@@ -1,5 +1,5 @@
 import { es_normalize, l2_normalize, sha256 } from "@/constants/functions";
-import { EMBEDDING_MODEL, EMBEDDING_PIPELINE_VERSION, get_embeddings, openai_completions } from "@/constants/open";
+import { EMBEDDING_MODEL, EMBEDDING_PIPELINE_VERSION, get_embeddings, openai_completions } from "@/constants/openai";
 import { query } from "@/lib/db";
 import { postProcessSpanishKeywords } from "./helpers";
 

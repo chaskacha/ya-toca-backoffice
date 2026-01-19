@@ -7,6 +7,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Wrapper from "@/components/basic/wrapper";
 import SafeArea from "@/components/basic/safe-area";
 import ComparisonTable, { CompareResult } from "@/components/cabildos/ComparisonTable";
+import ComparisonChat from "@/components/cabildos/ComparisonChat";
 
 function getAll(sp: URLSearchParams, key: string) {
     return sp.getAll(key).map((x) => x.trim()).filter(Boolean);
@@ -116,7 +117,10 @@ export default function CabildosComparisonClient() {
                         ) : null}
 
                         {data ? (
-                            <ComparisonTable data={data} cohortA_label={cohortA_label} cohortB_label={cohortB_label} />
+                            <>
+                                <ComparisonTable data={data} cohortA_label={cohortA_label} cohortB_label={cohortB_label} />
+                                <ComparisonChat basis={data} />
+                            </>
                         ) : null}
                     </>
                 </SafeArea>

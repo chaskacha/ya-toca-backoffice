@@ -34,7 +34,7 @@ export default function ComparisonTable({
     const per = data?.per_station ?? [];
 
     return (
-        <div style={{ marginTop: 16 }}>
+        <div style={{ marginTop: 16, maxWidth: '90vw', overflowX: 'auto', paddingBottom: 380 }}>
             {data?.summary ? (
                 <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #eee", padding: 14 }}>
                     <div className="fs16 fw700">Resumen</div>
@@ -44,43 +44,73 @@ export default function ComparisonTable({
 
             <div style={{ height: 14 }} />
 
-            <div style={{ width: "100%", overflowX: "auto", border: "1px solid #eee", borderRadius: 12, background: "#fff" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1100 }}>
+            <div
+                style={{
+                    width: "100%",
+                    overflowX: "auto",
+                    border: "1px solid #eee",
+                    borderRadius: 12,
+                    background: "#fff",
+                }}
+            >
+                <table
+                    style={{
+                        width: "100%",
+                        borderCollapse: "collapse"
+                    }}
+                >
                     <thead>
-                        <tr style={{ textAlign: "left", borderBottom: "1px solid #eee" }}>
-                            <th style={{ padding: 12, whiteSpace: "nowrap" }}>Estación</th>
-                            <th style={{ padding: 12 }}>{cohortA_label}</th>
-                            <th style={{ padding: 12 }}>{cohortB_label}</th>
-                            <th style={{ padding: 12 }}>Diferencias clave</th>
-                            <th style={{ padding: 12 }}>Hipótesis (posibles razones)</th>
-                            <th style={{ padding: 12 }}>Evidencia (ejemplos)</th>
+                        <tr
+                            style={{
+                                textAlign: "left",
+                                borderBottom: "1px solid #eee",
+                            }}
+                        >
+                            <th style={{ padding: 12, whiteSpace: "nowrap", minWidth: 160, position: "sticky", top: 0, background: "#fff", zIndex: 1 }}>
+                                Estación
+                            </th>
+                            <th style={{ padding: 12, minWidth: 260, position: "sticky", top: 0, background: "#fff", zIndex: 1 }}>
+                                {cohortA_label}
+                            </th>
+                            <th style={{ padding: 12, minWidth: 260, position: "sticky", top: 0, background: "#fff", zIndex: 1 }}>
+                                {cohortB_label}
+                            </th>
+                            <th style={{ padding: 12, minWidth: 260, position: "sticky", top: 0, background: "#fff", zIndex: 1 }}>
+                                Diferencias clave
+                            </th>
+                            <th style={{ padding: 12, minWidth: 320, position: "sticky", top: 0, background: "#fff", zIndex: 1 }}>
+                                Hipótesis (posibles razones)
+                            </th>
+                            <th style={{ padding: 12, minWidth: 520, position: "sticky", top: 0, background: "#fff", zIndex: 1 }}>
+                                Evidencia (ejemplos)
+                            </th>
                         </tr>
                     </thead>
 
                     <tbody>
                         {per.map((row, idx) => (
                             <tr key={idx} style={{ borderBottom: "1px solid #f0f0f0", verticalAlign: "top" }}>
-                                <td style={{ padding: 12, whiteSpace: "nowrap", fontWeight: 700 }}>
-                                    {row.stationName} (#{row.stationId})
+                                <td style={{ padding: 12, whiteSpace: "nowrap", fontWeight: 700, minWidth: 160 }}>
+                                    {row.stationName}
                                 </td>
 
-                                <td style={{ padding: 12 }}>
+                                <td style={{ padding: 12, minWidth: 260 }}>
                                     <Bullets items={row.cohortA_tendencies} />
                                 </td>
 
-                                <td style={{ padding: 12 }}>
+                                <td style={{ padding: 12, minWidth: 260 }}>
                                     <Bullets items={row.cohortB_tendencies} />
                                 </td>
 
-                                <td style={{ padding: 12 }}>
+                                <td style={{ padding: 12, minWidth: 260 }}>
                                     <Bullets items={row.key_differences} />
                                 </td>
 
-                                <td style={{ padding: 12 }}>
+                                <td style={{ padding: 12, minWidth: 320 }}>
                                     <Bullets items={row.possible_reasons_hypotheses} />
                                 </td>
 
-                                <td style={{ padding: 12, minWidth: 360 }}>
+                                <td style={{ padding: 12, minWidth: 520 }}>
                                     <div style={{ fontSize: 12, color: "#666", marginBottom: 6 }}>A</div>
                                     <Quotes items={row.evidence?.cohortA_examples ?? []} />
                                     <div style={{ height: 10 }} />
@@ -100,6 +130,7 @@ export default function ComparisonTable({
                     </tbody>
                 </table>
             </div>
+
 
             <div style={{ height: 14 }} />
 

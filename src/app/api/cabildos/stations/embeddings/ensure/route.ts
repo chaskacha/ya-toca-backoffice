@@ -1,6 +1,6 @@
 // app/api/cabildos/stations/embeddings/ensure/route.ts
 import { query } from "@/lib/db";
-import { get_embeddings, EMBEDDING_MODEL, EMBEDDING_PIPELINE_VERSION } from "@/constants/open"; // adapt path
+import { get_embeddings, EMBEDDING_MODEL, EMBEDDING_PIPELINE_VERSION } from "@/constants/openai"; // adapt path
 
 type EnsureBody = { commentIds: number[] };
 

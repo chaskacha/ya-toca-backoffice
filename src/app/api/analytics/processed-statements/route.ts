@@ -1,7 +1,7 @@
 // /app/api/topics/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db'; // your pg helper
-import { get_embeddings } from '@/constants/open';
+import { get_embeddings } from '@/constants/openai';
 
 // Optional: normalize inside SQL with unaccent/lower,
 // but we also clean here to reduce surprises in trigram similarity.

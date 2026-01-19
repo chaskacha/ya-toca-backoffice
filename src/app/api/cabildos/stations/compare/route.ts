@@ -1,6 +1,6 @@
 // app/api/cabildos/stations/compare/route.ts
 import { query } from "@/lib/db";
-import { openai_completions, EMBEDDING_MODEL, EMBEDDING_PIPELINE_VERSION } from "@/constants/open";
+import { openai_completions, EMBEDDING_MODEL, EMBEDDING_PIPELINE_VERSION } from "@/constants/openai";
 
 const ADMIN_PHONE = "51991515939";
 const DEFAULT_STATIONS = [11, 12, 13, 14];
