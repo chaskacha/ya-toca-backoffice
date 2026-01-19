@@ -49,6 +49,7 @@ export default function CabildosStationsTable() {
 
     const [loading, setLoading] = React.useState(true);
     const [rows, setRows] = React.useState<Row[]>([]);
+    console.log(rows);
     const [total, setTotal] = React.useState(0);
     const [page, setPage] = React.useState(1);
     const pageSize = 20;
@@ -243,7 +244,15 @@ export default function CabildosStationsTable() {
                                     <td style={{ padding: 12 }}>{r.age_group}</td>
                                     <td style={{ padding: 12 }}>{r.nivelinstruccion}</td>
                                     <td style={{ padding: 12, }}>{r.grupoetnico}</td>
-                                    <td style={{ padding: 12, whiteSpace: "nowrap" }}>{r.estacion === "Estacion 1" ? "E1" : r.estacion === "Estacion 2" ? "E2" : "E3"}</td>
+                                    <td style={{ padding: 12, whiteSpace: "nowrap" }}>{r.idestacion === 14
+                                        ? "E1"
+                                        : r.idestacion === 11
+                                            ? "E2"
+                                            : r.idestacion === 12
+                                                ? "E3"
+                                                : r.idestacion === 13
+                                                    ? "E4"
+                                                    : "N"}</td>
                                     <td style={{ padding: 12, minWidth: 520, maxWidth: 720 }}>
                                         <div
                                             style={{
@@ -307,7 +316,7 @@ export default function CabildosStationsTable() {
                     val.aValues.forEach((x) => params.append("a", x));
                     val.bValues.forEach((x) => params.append("b", x));
 
-                    router.push(`/cabildos/comparison?${params.toString()}`);
+                    router.push(`/cabildos/compare?${params.toString()}`);
                 }}
             />
         </div>

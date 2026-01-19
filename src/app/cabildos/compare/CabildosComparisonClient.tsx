@@ -1,8 +1,8 @@
-// app/cabildos/compare/page.tsx
-'use client';
+// app/cabildos/compare/CabildosComparisonClient.tsx
+"use client";
 
 import React from "react";
-import './styles.css';
+import "./styles.css";
 import { useSearchParams, useRouter } from "next/navigation";
 import Wrapper from "@/components/basic/wrapper";
 import SafeArea from "@/components/basic/safe-area";
@@ -12,7 +12,7 @@ function getAll(sp: URLSearchParams, key: string) {
     return sp.getAll(key).map((x) => x.trim()).filter(Boolean);
 }
 
-export default function CabildosComparisonPage() {
+export default function CabildosComparisonClient() {
     const sp = useSearchParams();
     const router = useRouter();
 
@@ -102,10 +102,6 @@ export default function CabildosComparisonPage() {
                         </div>
 
                         <div style={{ height: 12 }} />
-
-                        {/* <div style={{ color: "#666" }}>
-                            Dimensión: <b>{dimension}</b>
-                        </div> */}
 
                         {loading ? (
                             <div className="dash-loading" style={{ marginTop: 16 }}>

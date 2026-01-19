@@ -47,9 +47,9 @@ export const GET = async (request: Request) => {
         FROM base b
         WHERE
           ($2::text IS NULL OR b.region = $2::text)
-          AND ($3::text IS NULL OR b.age_group_norm = $3::text)   -- ✅ filter by age_group
+          AND ($3::text IS NULL OR b.age_group_norm = $3::text)
           AND ($4::text IS NULL OR b.genero_norm = $4::text)
-          AND ($5::int  IS NULL OR b.id_cabildo = $5::int)
+          AND ($5::int IS NULL OR b.id_cabildo = $5::int)
       )
       SELECT
         (SELECT COUNT(*)::int FROM filtered) AS total,
@@ -91,7 +91,6 @@ export const GET = async (request: Request) => {
          ) t
         ) AS cabildos;
     `;
-
     const res = await query(sql, [
       ADMIN_PHONE,
       region || null,
