@@ -6,13 +6,16 @@ import { usePathname } from 'next/navigation';
 
 const SidebarMenu: React.FC = () => {
     const pathname = usePathname();
+    console.log(pathname);
 
     const menuItems = [
         { href: '/cabildos', name: 'Cabildos' },
+        { href: '/murals', name: 'Murales' },
+        { href: '/darkroom', name: 'Dark Room' },
+        { href: '/radio', name: 'Radio' }
         // { href: '/dashboard', name: 'Dashboard' },
         // { href: '/topics', name: 'Temas' },
         // { href: '/summary', name: 'Resumen' },
-        // { href: '/chat', name: 'Chat' },
         // { href: '/unprocessed-statements', name: 'Declaraciones pendientes' },
         // { href: '/processed-statements', name: 'Declaraciones procesadas' },
         // { href: '/admin/topics', name: 'Temas predeterminados' },
@@ -24,7 +27,7 @@ const SidebarMenu: React.FC = () => {
             <div className='sidebar-menu-items'>
                 {menuItems.map((item, index) => (
                     <Link href={item.href} key={index}>
-                        <div className={item.href === pathname ? 'sidebar-menu-item-active' : 'sidebar-menu-item'}>{item.name}</div>
+                        <div className={pathname.includes(item.href) ? 'sidebar-menu-item-active' : 'sidebar-menu-item'}>{item.name}</div>
                     </Link>
                 ))}
             </div>

@@ -11,8 +11,8 @@ interface Props {
 const Wrapper: React.FC<Props> = ({ children, color = COLORS.GRAY2 }) => {
     return (
         <div className='wrapper' style={{ backgroundColor: color }}>
-            <div style={{ flex: 1, width: '100%', height: '100vh', backgroundColor: 'black' }}><SidebarMenu /></div>
-            <div style={{ flex: 11 }} className='wrapper-children'>{children}</div>
+            <div style={{ flex: 1.3, width: '100%', height: '100vh', backgroundColor: 'black' }}><SidebarMenu /></div>
+            <div style={{ flex: 10.7 }} className='wrapper-children'>{children}</div>
         </div>
     )
 }

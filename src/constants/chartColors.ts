@@ -11,7 +11,7 @@ export const CHART_COLORS = {
     gender: {
         "Femenino": "#E91E63",          // pink
         "Masculino": "#1E88E5",         // blue
-        "Prefiero no indicar": "#9E9E9E",
+        "Prefiero no indicar": "#000000",
         "Otro": "#9E9E9E",
     },
 

@@ -108,7 +108,7 @@ export default function CabildosDashboard() {
     const gender = React.useMemo(() => (data ? toChartData(data.breakdown.gender) : null), [data]);
     const regions = React.useMemo(() => (data ? toChartData(data.breakdown.regions) : null), [data]);
 
-    // ✅ Region options: only regions with at least 1 record
+    // Region options: only regions with at least 1 record
     const regionOptions = React.useMemo(() => {
         const apiRegions = data?.filters?.regions?.filter(Boolean) ?? [];
         const chartRegions = Object.keys(data?.breakdown?.regions ?? {}).filter(

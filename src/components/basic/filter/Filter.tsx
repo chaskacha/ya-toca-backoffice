@@ -25,6 +25,7 @@ export default function Filter({
                 style={{
                     height: 40,
                     minWidth: 180,
+                    width: '100%',
                     borderRadius: 10,
                     border: "1px solid #ddd",
                     padding: "0 10px",

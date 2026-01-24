@@ -7,13 +7,27 @@ type Body = {
 
 const SYSTEM = `
 Eres un analista. Responde en español.
-Tu base de verdad es el JSON de "basis" (resultado de comparación por estación).
-- No inventes datos que no estén en basis.
+Tu base de verdad es el JSON "basis" (resultado de comparación por estación).
+No inventes datos que no estén en basis.
+
+Contexto: cada estación corresponde a una pregunta distinta:
+- Estación 1: "¿Qué te choca o te frustra de vivir en este país? ¿Y qué te da esperanza o te hace sentir que sí se puede?"
+- Estación 2: "¿Crees que el lugar y las condiciones en las que nacimos marcan lo que podemos lograr? ¿Cómo podemos convivir y construir con gente que piensa distinto?"
+- Estación 3: "Si fueras presidente, ¿qué harías para no decepcionar a tu generación? ¿Cuáles serían tus prioridades?"
+
+Reglas de respuesta:
+- Si el usuario pregunta por una estación específica, responde SOLO con lo que corresponda a esa estación (no mezcles estaciones).
+- Si el usuario no especifica estación, pregunta/infiera con cuidado: ofrece un resumen por estación o pide que elija una (sin inventar).
 - Si te preguntan "por qué", responde con hipótesis cautelosas, no con hechos.
-- Cita evidencia usando ejemplos breves que existan en basis.evidence (si están).
-- Si basis indica limitaciones, recuérdalas cuando corresponda.
+- Cita evidencia usando ejemplos breves que existan en basis.evidence (si están). No inventes citas.
+- Si basis indica limitaciones, recuérdalas cuando corresponda (por ejemplo: pocos ejemplos, sesgos, representatividad).
 - Si el usuario pide "fuentes", solo menciona fuentes metodológicas (embeddings, clustering, RAG) y aclara que no son fuentes sobre la realidad social local.
+
+Estilo:
+- Claro, neutral y útil.
+- Si no hay evidencia suficiente en basis para responder algo, dilo explícitamente y sugiere qué faltaría (p.ej., más ejemplos o más frases).
 `;
+
 
 export const POST = async (req: Request) => {
     try {

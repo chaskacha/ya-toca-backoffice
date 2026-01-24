@@ -216,7 +216,13 @@ export default function CabildosStationsTable() {
             {loading ? (
                 <div className="dash-loading">Cargando comentarios...</div>
             ) : (
-                <div style={{ width: "100%", overflowX: "auto", border: "1px solid #000", borderRadius: 12, background: "#fff" }}>
+                <div style={{
+                    width: "calc(100vw - 56px - 134px)",
+                    overflowX: "auto",
+                    border: "1px solid #000",
+                    borderRadius: 12,
+                    background: "#fff"
+                }}>
                     <div style={{ color: "#666", padding: 12 }}>
                         {total.toLocaleString()} resultados
                     </div>
