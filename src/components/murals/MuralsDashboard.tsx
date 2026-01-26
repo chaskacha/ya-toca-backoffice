@@ -21,6 +21,13 @@ ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarEle
 
 type Breakdown = Record<string, number>;
 
+type Option = { label: string; value: string };
+
+type FiltersApi = {
+    regions: { id: number; nombreregion: string }[];
+    events: { id: number; name_event: string; date_event: string; region_name?: string | null }[];
+};
+
 type ApiResponse = {
     totalPhrases: number;
     breakdown: {
@@ -48,15 +55,35 @@ function toChartData(obj: Breakdown) {
 export default function MuralsDashboard() {
     const [data, setData] = React.useState<ApiResponse | null>(null);
     const [loading, setLoading] = React.useState(true);
+    const [loadingFilters, setLoadingFilters] = React.useState(true);
 
     const [filters, setFilters] = React.useState({
         regionId: "",
         eventId: "",
     });
 
+    const [filtersApi, setFiltersApi] = React.useState<FiltersApi | null>(null);
     const [eventsList, setEventsList] = React.useState<EventItem[]>([]);
 
     const isTabletOrLess = useMediaQuery("(max-width: 1024px)");
+
+    // Load filters once
+    React.useEffect(() => {
+        const run = async () => {
+            try {
+                setLoadingFilters(true);
+                const res = await fetch("/api/murals/phrases/filters");
+                const json = (await res.json()) as FiltersApi;
+                setFiltersApi(json);
+            } catch (e) {
+                console.error(e);
+                setFiltersApi(null);
+            } finally {
+                setLoadingFilters(false);
+            }
+        };
+        run();
+    }, []);
 
     // Load events (can be filtered by regionId)
     React.useEffect(() => {
@@ -108,6 +135,11 @@ export default function MuralsDashboard() {
 
     const phrasesByEvent = React.useMemo(() => (data ? toChartData(data.breakdown.events) : null), [data]);
 
+    const regionOptions: Option[] = React.useMemo(() => {
+        const list = filtersApi?.regions ?? [];
+        return [{ label: "Todas", value: "" }, ...list.map((r) => ({ label: r.nombreregion, value: String(r.id) }))];
+    }, [filtersApi]);
+
     const eventOptions = React.useMemo(() => {
         const list = eventsList ?? [];
         return [
@@ -130,6 +162,7 @@ export default function MuralsDashboard() {
         return Math.max(360, eventLabels.length * 34);
     }, [isTabletOrLess, eventLabels.length]);
 
+    if (loadingFilters) return <div className="dash-loading">Cargando filtros...</div>;
     if (loading) return <div className="dash-loading">Cargando dashboard...</div>;
     if (!data) return <div className="dash-loading">No se pudo cargar la data.</div>;
 
@@ -150,6 +183,12 @@ export default function MuralsDashboard() {
                     alignItems: "flex-end",
                 }}
             >
+                <Filter
+                    label="Región"
+                    value={filters.regionId}
+                    onChange={(v) => setFilters((p) => ({ ...p, regionId: v, eventId: "" }))}
+                    options={regionOptions}
+                />
 
                 <Filter
                     label="Evento"

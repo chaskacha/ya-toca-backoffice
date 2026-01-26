@@ -26,7 +26,6 @@ export const GET = async () => {
       ORDER BY e.date_event DESC, e.name_event ASC
       `
         );
-
         return new Response(
             JSON.stringify({
                 regions: regionsRes.rows,

@@ -20,6 +20,7 @@ export const GET = async (request: Request) => {
         SELECT
           ph.id AS phrase_id,
           ph.created_at AS created_at,
+          ph.question AS question,
           COALESCE(NULLIF(btrim(ph.clean_text), ''), btrim(ph.raw_text)) AS phrase,
           ph.confidence,
           p.photo_url,
@@ -48,7 +49,7 @@ export const GET = async (request: Request) => {
         (SELECT COALESCE(jsonb_agg(to_jsonb(t)), '[]'::jsonb)
          FROM (
            SELECT
-             created_at, phrase_id, phrase, confidence,
+             created_at, phrase_id, phrase, question, confidence,
              photo_url, event_id, name_event, date_event, idregion, region_name
            FROM filtered
            ORDER BY created_at DESC, phrase_id DESC

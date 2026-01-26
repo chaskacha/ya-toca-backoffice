@@ -8,15 +8,17 @@ import CompareModal from "./CompareModal";
 type Option = { label: string; value: string };
 
 type FiltersApi = {
-    regions: { id: number; nombre: string }[];
+    regions: { id: number; nombreregion: string }[];
     events: { id: number; name_event: string; date_event: string; region_name?: string | null }[];
 };
 
 type Row = {
     created_at: string;
     event_id: number;
+    region_name: string;
     name_event: string;
     phrase: string;
+    question: string | null;
     photo_url?: string | null;
 };
 
@@ -92,7 +94,7 @@ export default function MuralsPhrasesTable() {
 
     const regionOptions: Option[] = React.useMemo(() => {
         const list = filtersApi?.regions ?? [];
-        return [{ label: "Todas", value: "" }, ...list.map((r) => ({ label: r.nombre, value: String(r.id) }))];
+        return [{ label: "Todas", value: "" }, ...list.map((r) => ({ label: r.nombreregion, value: String(r.id) }))];
     }, [filtersApi]);
 
     const eventOptions: Option[] = React.useMemo(() => {
@@ -113,7 +115,7 @@ export default function MuralsPhrasesTable() {
     const compareFiltersAdapter = React.useMemo(() => {
         if (!filtersApi) return null;
         return {
-            regions: (filtersApi.regions ?? []).map((r) => r.nombre),
+            regions: (filtersApi.regions ?? []).map((r) => r.nombreregion),
             genders: [],
             ageGroups: [],
             nivelesInstruccion: [],
@@ -194,7 +196,9 @@ export default function MuralsPhrasesTable() {
                         <thead>
                             <tr style={{ textAlign: "left", borderBottom: "1px solid #eee" }}>
                                 <th style={{ padding: 12 }}>Fecha</th>
+                                <th style={{ padding: 12 }}>Región</th>
                                 <th style={{ padding: 12 }}>Evento</th>
+                                <th style={{ padding: 12 }}>Pregunta</th>
                                 <th style={{ padding: 12 }}>Frase</th>
                             </tr>
                         </thead>
@@ -203,7 +207,9 @@ export default function MuralsPhrasesTable() {
                             {rows.map((r, idx) => (
                                 <tr key={idx} style={{ borderBottom: "1px solid #000" }}>
                                     <td style={{ padding: 12, whiteSpace: "nowrap" }}>{String(r.created_at).slice(0, 10)}</td>
+                                    <td style={{ padding: 12, whiteSpace: "nowrap" }}>{r.region_name}</td>
                                     <td style={{ padding: 12, whiteSpace: "nowrap" }}>{r.name_event}</td>
+                                    <td style={{ padding: 12, whiteSpace: "nowrap" }}>{r.question || "Sin pregunta"}</td>
                                     <td style={{ padding: 12, minWidth: 520, maxWidth: 720 }}>
                                         <div
                                             style={{
