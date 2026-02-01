@@ -4,6 +4,7 @@ import { openai_completions, EMBEDDING_MODEL, EMBEDDING_PIPELINE_VERSION } from 
 
 const ADMIN_PHONE = "51991515939";
 const DEFAULT_STATIONS = [11, 12, 13, 14];
+const NO_DEDUP_CABILDO_IDS = [50, 51, 52, 53, 54];
 
 type Row = {
     idcomentario: number;
@@ -104,48 +105,66 @@ export const GET = async (req: Request) => {
         const cohortB = buildCohortFilters(searchParams, "b_");
 
         const baseSql = `
-      WITH dedup AS (
-        SELECT DISTINCT ON (p.telefono)
-          p.id,
-          p.telefono,
-          p.id_cabildo,
-          p.region,
-          p.genero,
-          p.age_group,
-          p.nivelinstruccion,
-          p.grupoetnico,
-          p.fechacreacion
-        FROM participantes p
-        WHERE
-          p.id_cabildo IS NOT NULL
-          AND p.telefono IS NOT NULL
-          AND btrim(p.telefono) <> ''
-          AND p.telefono <> $1
-        ORDER BY p.telefono, p.id DESC
-      ),
-      base AS (
-        SELECT d.*
-        FROM dedup d
-      ),
-      joined AS (
-        SELECT
-          b.*,
-          cp.idcomentario,
-          cm.texto AS comentario,
-          cm.idestacion,
-          e.nombreestacion AS estacion
-        FROM base b
-        JOIN comentariosparticipantes cp ON cp.idparticipante = b.id
-        JOIN comentarios cm ON cm.id = cp.idcomentario
-        JOIN estaciones e ON e.id = cm.idestacion
-        WHERE cm.idestacion = ANY($2::int[])
-          AND cm.texto IS NOT NULL
-          AND btrim(cm.texto) <> ''
-      )
-    `;
+        WITH
+        raw AS (
+            SELECT
+            p.id,
+            p.telefono,
+            p.id_cabildo,
+            p.region,
+            p.genero,
+            p.age_group,
+            p.nivelinstruccion,
+            p.grupoetnico,
+            p.fechacreacion
+            FROM participantes p
+            WHERE
+            p.id_cabildo IS NOT NULL
+            AND p.telefono IS NOT NULL
+            AND btrim(p.telefono) <> ''
+            AND p.telefono <> $1
+        ),
 
-        const whereA = buildWhereClause(cohortA, 2);
-        const whereB = buildWhereClause(cohortB, 2);
+        dedup AS (
+            -- A) cabildos sin deduplicación
+            SELECT *
+            FROM raw
+            WHERE id_cabildo = ANY($3::int[])
+
+            UNION ALL
+
+            -- B) resto: dedup por teléfono conservando el más antiguo
+            SELECT DISTINCT ON (telefono)
+            *
+            FROM raw
+            WHERE id_cabildo <> ALL($3::int[])
+            ORDER BY telefono, fechacreacion ASC, id ASC
+        ),
+
+        base AS (
+            SELECT d.*
+            FROM dedup d
+        ),
+
+        joined AS (
+            SELECT
+            b.*,
+            cp.idcomentario,
+            cm.texto AS comentario,
+            cm.idestacion,
+            e.nombreestacion AS estacion
+            FROM base b
+            JOIN comentariosparticipantes cp ON cp.idparticipante = b.id
+            JOIN comentarios cm ON cm.id = cp.idcomentario
+            JOIN estaciones e ON e.id = cm.idestacion
+            WHERE cm.idestacion = ANY($2::int[])
+            AND cm.texto IS NOT NULL
+            AND btrim(cm.texto) <> ''
+        )
+        `;
+
+        const whereA = buildWhereClause(cohortA, 3);
+        const whereB = buildWhereClause(cohortB, 3);
 
         const sqlA = `
       ${baseSql}
@@ -168,8 +187,9 @@ export const GET = async (req: Request) => {
       LIMIT 1200
     `;
 
-        const paramsA = [ADMIN_PHONE, stationIds, ...whereA.params];
-        const paramsB = [ADMIN_PHONE, stationIds, ...whereB.params];
+        const paramsA = [ADMIN_PHONE, stationIds, NO_DEDUP_CABILDO_IDS, ...whereA.params];
+        const paramsB = [ADMIN_PHONE, stationIds, NO_DEDUP_CABILDO_IDS, ...whereB.params];
+
 
         const [resA, resB] = await Promise.all([query(sqlA, paramsA), query(sqlB, paramsB)]);
         const rowsA = resA.rows as Row[];

@@ -171,7 +171,6 @@ const Topics: React.FC = () => {
                         className="px24 py8 w100"
                         style={{ background: '#000', color: '#fff', borderRadius: 6, height: 40 }}
                         onClick={() => {
-                            console.log('Comparing:', selection1, selection2);
                             router.push(`/topics-comparison?selection1=${selection1}&selection2=${selection2}`);
                             setOpen(false);
                         }}

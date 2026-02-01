@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation';
 
 const SidebarMenu: React.FC = () => {
     const pathname = usePathname();
-    console.log(pathname);
 
     const menuItems = [
         { href: '/cabildos', name: 'Cabildos' },

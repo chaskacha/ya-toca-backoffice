@@ -10,16 +10,16 @@ import { toPgVectorLiteral } from "@/constants/functions";
 const STATIONS = [11, 12, 13, 14];
 
 type Body = {
-    limit?: number;      // how many to embed this run
-    batchSize?: number;  // embedding batch size
+    limit?: number;
+    batchSize?: number;
 };
 
 export const POST = async (req: Request) => {
     try {
         const body = (await req.json().catch(() => ({}))) as Body;
 
-        const limit = Math.min(5000, Math.max(50, Number(body.limit ?? 500))); // default 500
-        const batchSize = Math.min(200, Math.max(10, Number(body.batchSize ?? 100))); // default 100
+        const limit = Math.min(5000, Math.max(50, Number(body.limit ?? 500)));
+        const batchSize = Math.min(200, Math.max(10, Number(body.batchSize ?? 100)));
 
         // 1) pick missing comments (only for stations 11-14)
         const missingRes = await query(

@@ -119,7 +119,7 @@ export default function CabildosComparisonClient() {
                         {data ? (
                             <>
                                 <ComparisonTable data={data} cohortA_label={cohortA_label} cohortB_label={cohortB_label} />
-                                <ComparisonChat basis={data} />
+                                <ComparisonChat basis={data} mode="compare" />
                             </>
                         ) : null}
                     </>

@@ -3,8 +3,8 @@
 import React from "react";
 
 type ChatMsg = { role: "user" | "assistant"; content: string };
-
 type ChatSize = "min" | "dock" | "full";
+type Mode = "compare" | "analyze";
 
 function nextSize(s: ChatSize): ChatSize {
     if (s === "min") return "dock";
@@ -13,10 +13,9 @@ function nextSize(s: ChatSize): ChatSize {
 }
 
 function iconFor(s: ChatSize) {
-    // icon shows the NEXT action
-    if (s === "min") return "💬";      // open chat
-    if (s === "dock") return "⬜";     // go full
-    return "➖";                        // minimize
+    if (s === "min") return "💬";
+    if (s === "dock") return "⬜";
+    return "➖";
 }
 
 function labelFor(s: ChatSize) {
@@ -25,22 +24,35 @@ function labelFor(s: ChatSize) {
     return "Minimizar";
 }
 
-export default function ComparisonChat({
+function headerFor(mode: Mode) {
+    return mode === "compare" ? "Chat (basado en la comparación)" : "Chat (basado en el análisis)";
+}
+
+function starterFor(mode: Mode) {
+    return mode === "compare"
+        ? "Listo. Pregúntame lo que quieras sobre la comparación. Puedo explicar diferencias por estación, citar ejemplos y señalar limitaciones."
+        : "Listo. Pregúntame lo que quieras sobre el análisis del grupo filtrado. Puedo resumir por estación, citar evidencia y señalar limitaciones.";
+}
+
+export default function CabildosChat({
     basis,
+    mode,
 }: {
-    basis: any; // compare JSON (CompareResult)
+    basis: any;
+    mode: Mode;
 }) {
     const [messages, setMessages] = React.useState<ChatMsg[]>([
-        {
-            role: "assistant",
-            content:
-                "Listo. Pregúntame lo que quieras sobre la comparación. Puedo explicar diferencias por estación, citar ejemplos y señalar limitaciones.",
-        },
+        { role: "assistant", content: starterFor(mode) },
     ]);
     const [input, setInput] = React.useState("");
     const [loading, setLoading] = React.useState(false);
-
     const [size, setSize] = React.useState<ChatSize>("dock");
+
+    // If mode changes (rare), reset greeting
+    React.useEffect(() => {
+        setMessages([{ role: "assistant", content: starterFor(mode) }]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [mode]);
 
     const send = async () => {
         const text = input.trim();
@@ -56,8 +68,9 @@ export default function ComparisonChat({
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
+                    mode,     // ✅ key
                     basis,
-                    messages: next, // ephemeral chat history (only in this page session)
+                    messages: next,
                 }),
             });
 
@@ -66,10 +79,7 @@ export default function ComparisonChat({
             if (!res.ok) {
                 setMessages((p) => [
                     ...p,
-                    {
-                        role: "assistant",
-                        content: json?.error || "No se pudo responder. Intenta de nuevo.",
-                    },
+                    { role: "assistant", content: json?.error || "No se pudo responder. Intenta de nuevo." },
                 ]);
                 return;
             }
@@ -86,21 +96,9 @@ export default function ComparisonChat({
     // ---- layout based on size ----
     const containerStyle: React.CSSProperties =
         size === "min"
-            ? {
-                position: "fixed",
-                bottom: 14,
-                right: 14,
-                zIndex: 50,
-            }
+            ? { position: "fixed", bottom: 14, right: 14, zIndex: 50 }
             : size === "dock"
-                ? {
-                    position: "fixed",
-                    bottom: 12,
-                    right: 0,
-                    left: 85, // adjust if you have sidebar; or set to 12
-                    width: "auto",
-                    zIndex: 50,
-                }
+                ? { position: "fixed", bottom: 12, right: 0, left: 85, width: "auto", zIndex: 50 }
                 : {
                     position: "fixed",
                     inset: 0,
@@ -112,7 +110,6 @@ export default function ComparisonChat({
                     alignItems: "center",
                 };
 
-    // inner panel style
     const panelStyle: React.CSSProperties =
         size === "min"
             ? {
@@ -151,10 +148,8 @@ export default function ComparisonChat({
                     flexDirection: "column",
                 };
 
-    const bodyHeight =
-        size === "dock" ? "30vh" : size === "full" ? "100%" : "auto";
+    const bodyHeight = size === "dock" ? "30vh" : size === "full" ? "100%" : "auto";
 
-    // ---- render ----
     if (size === "min") {
         return (
             <div style={containerStyle}>
@@ -171,14 +166,8 @@ export default function ComparisonChat({
     }
 
     return (
-        <div
-            style={containerStyle}
-            onClick={size === "full" ? () => setSize("dock") : undefined}
-        >
-            <div
-                style={panelStyle}
-                onClick={(e) => e.stopPropagation()}
-            >
+        <div style={containerStyle} onClick={size === "full" ? () => setSize("dock") : undefined}>
+            <div style={panelStyle} onClick={(e) => e.stopPropagation()}>
                 <div
                     style={{
                         padding: 14,
@@ -190,7 +179,7 @@ export default function ComparisonChat({
                     }}
                 >
                     <div>
-                        <div className="fs18 fw700">Chat (basado en la comparación)</div>
+                        <div className="fs18 fw700">{headerFor(mode)}</div>
                         <div style={{ color: "#666", marginTop: 6 }}>
                             Esta conversación no se guarda. Se reinicia si sales de la página.
                         </div>
@@ -217,34 +206,16 @@ export default function ComparisonChat({
                     </button>
                 </div>
 
-                <div
-                    style={{
-                        padding: 14,
-                        height: bodyHeight,
-                        maxHeight: size === "dock" ? "30vh" : undefined,
-                        overflowY: "auto",
-                    }}
-                >
+                <div style={{ padding: 14, height: bodyHeight, maxHeight: size === "dock" ? "30vh" : undefined, overflowY: "auto" }}>
                     {messages.map((m, idx) => (
                         <div key={idx} style={{ marginBottom: 12 }}>
-                            <div style={{ fontWeight: 700, marginBottom: 4 }}>
-                                {m.role === "user" ? "Tú" : "Asistente"}
-                            </div>
-                            <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.35 }}>
-                                {m.content}
-                            </div>
+                            <div style={{ fontWeight: 700, marginBottom: 4 }}>{m.role === "user" ? "Tú" : "Asistente"}</div>
+                            <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.35 }}>{m.content}</div>
                         </div>
                     ))}
                 </div>
 
-                <div
-                    style={{
-                        padding: 14,
-                        borderTop: "1px solid #eee",
-                        display: "flex",
-                        gap: 10,
-                    }}
-                >
+                <div style={{ padding: 14, borderTop: "1px solid #eee", display: "flex", gap: 10 }}>
                     <input
                         value={input}
                         onChange={(e) => setInput(e.target.value)}

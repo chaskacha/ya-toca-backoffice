@@ -2,6 +2,7 @@
 import { query } from "@/lib/db";
 
 const ADMIN_PHONE = "51991515939";
+const NO_DEDUP_CABILDO_IDS = [50, 51, 52, 53, 54, 61];
 
 export const GET = async (request: Request) => {
   try {
@@ -16,8 +17,9 @@ export const GET = async (request: Request) => {
       cabildoId && /^\d+$/.test(cabildoId) ? Number(cabildoId) : null;
 
     const sql = `
-      WITH dedup AS (
-        SELECT DISTINCT ON (p.telefono)
+      WITH
+      raw AS (
+        SELECT
           p.id,
           p.telefono,
           p.id_cabildo,
@@ -31,8 +33,25 @@ export const GET = async (request: Request) => {
           AND p.telefono IS NOT NULL
           AND btrim(p.telefono) <> ''
           AND p.telefono <> $1
-        ORDER BY p.telefono, p.id DESC
       ),
+
+      -- Dedup solo para cabildos que NO están en la lista de excepciones
+      dedup AS (
+      -- A) cabildos where we DO NOT deduplicate
+      SELECT *
+      FROM raw
+      WHERE id_cabildo = ANY($6::int[])
+
+      UNION ALL
+
+      -- B) rest: dedup by telefono → keep OLDEST by fechacreacion
+      SELECT DISTINCT ON (telefono)
+        *
+      FROM raw
+      WHERE id_cabildo <> ALL($6::int[])
+      ORDER BY telefono, fechacreacion ASC, id ASC
+    ),
+
       base AS (
         SELECT
           d.*,
@@ -42,6 +61,7 @@ export const GET = async (request: Request) => {
         FROM dedup d
         LEFT JOIN cabildos c ON c.id = d.id_cabildo
       ),
+
       filtered AS (
         SELECT *
         FROM base b
@@ -49,8 +69,9 @@ export const GET = async (request: Request) => {
           ($2::text IS NULL OR b.region = $2::text)
           AND ($3::text IS NULL OR b.age_group_norm = $3::text)
           AND ($4::text IS NULL OR b.genero_norm = $4::text)
-          AND ($5::int IS NULL OR b.id_cabildo = $5::int)
+          AND ($5::int  IS NULL OR b.id_cabildo = $5::int)
       )
+
       SELECT
         (SELECT COUNT(*)::int FROM filtered) AS total,
 
@@ -97,6 +118,7 @@ export const GET = async (request: Request) => {
       age || null,
       gender || null,
       cabildoIdInt,
+      NO_DEDUP_CABILDO_IDS,
     ]);
 
     const row = res.rows?.[0];

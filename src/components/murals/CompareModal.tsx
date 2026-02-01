@@ -45,7 +45,6 @@ export default function CompareModal({
 }) {
     const [aValues, setAValues] = React.useState<string[]>([]);
     const [bValues, setBValues] = React.useState<string[]>([]);
-    console.log(filtersApi);
 
     React.useEffect(() => {
         if (!open) return;

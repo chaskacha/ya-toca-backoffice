@@ -28,7 +28,7 @@ export const GET = async (request: Request) => {
     const sql = `
       WITH base AS (
         SELECT
-          p.id_cabildo, -- ✅ IMPORTANT (so we can filter)
+          p.id_cabildo, -- IMPORTANT (so we can filter)
           p.fechacreacion AS fecha,
           cbl.nombre_de_cabildo AS cabildo,
           p.telefono AS telefono,

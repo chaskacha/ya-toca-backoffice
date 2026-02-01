@@ -35,7 +35,9 @@ export default function CabildosStationsTable() {
     const [filtersApi, setFiltersApi] = React.useState<FiltersApi | null>(null);
     const [loadingFilters, setLoadingFilters] = React.useState(true);
     const router = useRouter();
+    // analysis modals
     const [compareOpen, setCompareOpen] = React.useState(false);
+    const [analyzeOpen, setAnalyzeOpen] = React.useState(false);
 
     const [filters, setFilters] = React.useState({
         cabildoId: "",
@@ -49,7 +51,6 @@ export default function CabildosStationsTable() {
 
     const [loading, setLoading] = React.useState(true);
     const [rows, setRows] = React.useState<Row[]>([]);
-    console.log(rows);
     const [total, setTotal] = React.useState(0);
     const [page, setPage] = React.useState(1);
     const pageSize = 20;
@@ -205,85 +206,116 @@ export default function CabildosStationsTable() {
                 >
                     Comparar
                 </button>
+                <button
+                    onClick={() => {
+                        const params = new URLSearchParams();
+
+                        // send current filters
+                        if (filters.cabildoId) params.set("cabildoId", filters.cabildoId);
+                        if (filters.region) params.set("region", filters.region);
+                        if (filters.age) params.set("age", filters.age);
+                        if (filters.gender) params.set("gender", filters.gender);
+                        if (filters.nivelinstruccion) params.set("nivelinstruccion", filters.nivelinstruccion);
+                        if (filters.grupoetnico) params.set("grupoetnico", filters.grupoetnico);
+                        if (filters.stationId) params.set("stationId", filters.stationId);
+
+                        router.push(`/cabildos/analyze?${params.toString()}`);
+                    }}
+                    style={{
+                        height: 40,
+                        padding: "0 12px",
+                        borderRadius: 8,
+                        background: "linear-gradient(90deg, hsla(346, 100%, 83%, 1) 0%, hsla(238, 70%, 48%, 1) 100%)",
+                        filter: "progid: DXImageTransform.Microsoft.gradient( startColorstr=\"#FFA8BD\", endColorstr=\"#242ACF\", GradientType=1 )",
+                        color: "#fff",
+                    }}
+                >
+                    Analyze
+                </button>
+
             </div>
 
             <div style={{ height: 14 }} />
 
-            {loadingFilters ? (
-                <div className="dash-loading">Cargando filtros...</div>
-            ) : null}
+            {
+                loadingFilters ? (
+                    <div className="dash-loading">Cargando filtros...</div>
+                ) : null
+            }
 
-            {loading ? (
-                <div className="dash-loading">Cargando comentarios...</div>
-            ) : (
-                <div style={{
-                    width: "calc(100vw - 56px - 134px)",
-                    overflowX: "auto",
-                    border: "1px solid #000",
-                    borderRadius: 12,
-                    background: "#fff"
-                }}>
-                    <div style={{ color: "#666", padding: 12 }}>
-                        {total.toLocaleString()} resultados
+            {
+                loading ? (
+                    <div className="dash-loading">Cargando comentarios...</div>
+                ) : (
+                    <div style={{
+                        width: "calc(100vw - 56px - 134px)",
+                        overflowX: "auto",
+                        border: "1px solid #000",
+                        borderRadius: 12,
+                        background: "#fff"
+                    }}>
+                        <div style={{ color: "#666", padding: 12 }}>
+                            {total.toLocaleString()} resultados
+                        </div>
+                        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 900 }}>
+                            <thead>
+                                <tr style={{ textAlign: "left", borderBottom: "1px solid #eee" }}>
+                                    <th style={{ padding: 12 }}>Fecha</th>
+                                    <th style={{ padding: 12 }}>Cabildo</th>
+                                    <th style={{ padding: 12 }}>Región</th>
+                                    <th style={{ padding: 12 }}>Género</th>
+                                    <th style={{ padding: 12 }}>Edad</th>
+                                    <th style={{ padding: 12 }}>Nivel</th>
+                                    <th style={{ padding: 12 }}>Grupo étnico</th>
+                                    <th style={{ padding: 12 }}>Estación</th>
+                                    <th style={{ padding: 12 }}>Comentario</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {rows.map((r, idx) => (
+                                    <tr key={idx} style={{ borderBottom: "1px solid #000" }}>
+                                        <td style={{ padding: 12, whiteSpace: "nowrap" }}>{String(r.fecha).slice(0, 10)}</td>
+                                        <td style={{ padding: 12 }}>{r.cabildo}</td>
+                                        <td style={{ padding: 12 }}>{r.region}</td>
+                                        <td style={{ padding: 12 }}>{r.genero === "Masculino" ? "M" : r.genero === "Femenino" ? "F" : "N"}</td>
+                                        <td style={{ padding: 12 }}>{r.age_group}</td>
+                                        <td style={{ padding: 12 }}>{r.nivelinstruccion}</td>
+                                        <td style={{ padding: 12, }}>{r.grupoetnico}</td>
+                                        <td style={{ padding: 12, whiteSpace: "nowrap" }}>{r.idestacion === 14
+                                            ? "E1"
+                                            : r.idestacion === 11
+                                                ? "E2"
+                                                : r.idestacion === 12
+                                                    ? "E3"
+                                                    : r.idestacion === 13
+                                                        ? "E4"
+                                                        : "N"}</td>
+                                        <td style={{ padding: 12, minWidth: 520, maxWidth: 720 }}>
+                                            <div
+                                                style={{
+                                                    whiteSpace: "normal",
+                                                    wordBreak: "break-word",
+                                                    overflowWrap: "anywhere",
+                                                    lineHeight: 1.35,
+                                                }}
+                                            >
+                                                {r.comentario}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {rows.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={9} style={{ padding: 16, color: "#777" }}>
+                                            No hay resultados con los filtros seleccionados.
+                                        </td>
+                                    </tr>
+                                ) : null}
+                            </tbody>
+                        </table>
                     </div>
-                    <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 900 }}>
-                        <thead>
-                            <tr style={{ textAlign: "left", borderBottom: "1px solid #eee" }}>
-                                <th style={{ padding: 12 }}>Fecha</th>
-                                <th style={{ padding: 12 }}>Cabildo</th>
-                                <th style={{ padding: 12 }}>Región</th>
-                                <th style={{ padding: 12 }}>Género</th>
-                                <th style={{ padding: 12 }}>Edad</th>
-                                <th style={{ padding: 12 }}>Nivel</th>
-                                <th style={{ padding: 12 }}>Grupo étnico</th>
-                                <th style={{ padding: 12 }}>Estación</th>
-                                <th style={{ padding: 12 }}>Comentario</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {rows.map((r, idx) => (
-                                <tr key={idx} style={{ borderBottom: "1px solid #000" }}>
-                                    <td style={{ padding: 12, whiteSpace: "nowrap" }}>{String(r.fecha).slice(0, 10)}</td>
-                                    <td style={{ padding: 12 }}>{r.cabildo}</td>
-                                    <td style={{ padding: 12 }}>{r.region}</td>
-                                    <td style={{ padding: 12 }}>{r.genero === "Masculino" ? "M" : r.genero === "Femenino" ? "F" : "N"}</td>
-                                    <td style={{ padding: 12 }}>{r.age_group}</td>
-                                    <td style={{ padding: 12 }}>{r.nivelinstruccion}</td>
-                                    <td style={{ padding: 12, }}>{r.grupoetnico}</td>
-                                    <td style={{ padding: 12, whiteSpace: "nowrap" }}>{r.idestacion === 14
-                                        ? "E1"
-                                        : r.idestacion === 11
-                                            ? "E2"
-                                            : r.idestacion === 12
-                                                ? "E3"
-                                                : r.idestacion === 13
-                                                    ? "E4"
-                                                    : "N"}</td>
-                                    <td style={{ padding: 12, minWidth: 520, maxWidth: 720 }}>
-                                        <div
-                                            style={{
-                                                whiteSpace: "normal",
-                                                wordBreak: "break-word",
-                                                overflowWrap: "anywhere",
-                                                lineHeight: 1.35,
-                                            }}
-                                        >
-                                            {r.comentario}
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                            {rows.length === 0 ? (
-                                <tr>
-                                    <td colSpan={9} style={{ padding: 16, color: "#777" }}>
-                                        No hay resultados con los filtros seleccionados.
-                                    </td>
-                                </tr>
-                            ) : null}
-                        </tbody>
-                    </table>
-                </div>
-            )}
+                )
+            }
 
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
 
@@ -325,6 +357,6 @@ export default function CabildosStationsTable() {
                     router.push(`/cabildos/compare?${params.toString()}`);
                 }}
             />
-        </div>
+        </div >
     );
 }

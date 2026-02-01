@@ -147,7 +147,7 @@ export default function CabildosDashboard() {
         [cabildosList]
     );
 
-    // ✅ stable cabildo colors (based on labels order)
+    // stable cabildo colors (based on labels order)
     const cabildoLabels = React.useMemo(() => Object.keys(data?.breakdown?.cabildos ?? {}), [data]);
     const cabildoValues = React.useMemo(() => Object.values(data?.breakdown?.cabildos ?? {}), [data]);
     const cabildoColors = React.useMemo(
