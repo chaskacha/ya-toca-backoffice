@@ -12,23 +12,15 @@ export const get_embeddings = async (text: string[]) => {
     });
     return response.data.map(d => d.embedding);
 };
-// const SYS = `Eres un analista de taxonomías de temas sociopolíticos.
-// Devuelve JSON con: {id, keywords[], seed_examples[]}.
-// - 10–15 keywords en minúsculas, útiles y variadas (incluye sinónimos/variantes).
-// - 6–10 seed_examples en español, 5–20 palabras, naturales y diversas.
-// - No repitas en exceso la misma palabra.`;
 
-// export async function propose(t: RawTopic) {
-//     const user = `Tema: ${t.name}\nDescripción: ${t.description}\nDevuelve solo JSON.`;
-//     const res = await openai.chat.completions.create({
-//         model: "gpt-4o-mini",
-//         temperature: 0.3,
-//         response_format: { type: "json_object" },
-//         messages: [{ role: "system", content: SYS }, { role: "user", content: user }]
-//     });
-//     return JSON.parse(res.choices[0].message.content!);
-// }
-
+export const openai_transcribe = (model: string, file: any, language?: string, prompt?: string) => {
+    return openai.audio.transcriptions.create({
+        model,
+        file,
+        language,
+        prompt,
+    });
+};
 export const openai_completions = (model: string, messages: OpenAI.Chat.ChatCompletionCreateParams['messages'], response_format?: OpenAI.Chat.ChatCompletionCreateParams['response_format']) => {
     return openai.chat.completions.create({
         model,

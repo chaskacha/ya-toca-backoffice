@@ -11,7 +11,8 @@ const SidebarMenu: React.FC = () => {
         { href: '/cabildos', name: 'Cabildos' },
         { href: '/murals', name: 'Murales' },
         { href: '/darkroom', name: 'Dark Room' },
-        { href: '/radio', name: 'Radio' }
+        { href: '/radio', name: 'Radio' },
+        { href: '/videos', name: 'Videos' },
         // { href: '/dashboard', name: 'Dashboard' },
         // { href: '/topics', name: 'Temas' },
         // { href: '/summary', name: 'Resumen' },
