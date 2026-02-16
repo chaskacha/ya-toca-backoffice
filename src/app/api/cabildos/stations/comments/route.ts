@@ -1,7 +1,8 @@
+// app/api/cabildos/stations/comments/route.ts
 import { query } from "@/lib/db";
 
 const ADMIN_PHONE = "51991515939";
-const STATIONS = [11, 12, 13, 14];
+const STATIONS = [14, 11, 12, 15];
 
 export const GET = async (request: Request) => {
   try {
@@ -26,56 +27,108 @@ export const GET = async (request: Request) => {
     const offset = (page - 1) * pageSize;
 
     const sql = `
-      WITH base AS (
-        SELECT
-          p.id_cabildo, -- IMPORTANT (so we can filter)
-          p.fechacreacion AS fecha,
-          cbl.nombre_de_cabildo AS cabildo,
-          p.telefono AS telefono,
-          p.region AS region,
-          COALESCE(NULLIF(btrim(p.genero), ''), 'No especifica') AS genero,
-          COALESCE(NULLIF(btrim(p.age_group), ''), 'No especifica') AS age_group,
-          COALESCE(NULLIF(btrim(p.nivelinstruccion), ''), 'No especifica') AS nivelinstruccion,
-          COALESCE(NULLIF(btrim(p.grupoetnico), ''), 'No especifica') AS grupoetnico,
-          e.id AS idestacion,
-          e.nombreestacion AS estacion,
-          c.texto AS comentario
-        FROM participantes p
-        JOIN cabildos cbl ON cbl.id = p.id_cabildo
-        JOIN comentariosparticipantes cp ON cp.idparticipante = p.id
-        JOIN comentarios c ON c.id = cp.idcomentario
-        JOIN estaciones e ON e.id = c.idestacion
-        WHERE
-          p.id_cabildo IS NOT NULL
-          AND p.telefono IS NOT NULL
-          AND btrim(p.telefono) <> ''
-          AND p.telefono <> $1
-          AND e.id = ANY($2::int[])
-      ),
-      filtered AS (
-        SELECT *
-        FROM base b
-        WHERE
-          ($3::int  IS NULL OR b.id_cabildo = $3::int)
-          AND ($4::text IS NULL OR b.region = $4::text)
-          AND ($5::text IS NULL OR b.genero = $5::text)
-          AND ($6::text IS NULL OR b.age_group = $6::text)
-          AND ($7::text IS NULL OR b.nivelinstruccion = $7::text)
-          AND ($8::text IS NULL OR b.grupoetnico = $8::text)
-          AND ($9::int  IS NULL OR b.idestacion = $9::int)
-      )
-      SELECT
-        (SELECT COUNT(*)::int FROM filtered) AS total,
-        (SELECT COALESCE(jsonb_agg(to_jsonb(t)), '[]'::jsonb)
-         FROM (
-           SELECT
-             fecha, cabildo, telefono, region, genero, age_group, nivelinstruccion, grupoetnico,
-             idestacion, estacion, comentario
-           FROM filtered
-           ORDER BY fecha DESC
-           LIMIT $10 OFFSET $11
-         ) t
-        ) AS rows;
+    WITH participants_base AS (
+  SELECT
+    p.id AS participant_id,
+    p.id_cabildo,
+    p.fechacreacion AS fecha,
+    cbl.nombre_de_cabildo AS cabildo,
+    reg.nombreregion AS region_cabildo,
+    p.region AS region_procedencia,
+    p.telefono,
+    COALESCE(NULLIF(btrim(p.genero), ''), 'No especifica') AS genero,
+    COALESCE(NULLIF(btrim(p.age_group), ''), 'No especifica') AS age_group,
+    COALESCE(NULLIF(btrim(p.nivelinstruccion), ''), 'No especifica') AS nivelinstruccion,
+    COALESCE(NULLIF(btrim(p.grupoetnico), ''), 'No especifica') AS grupoetnico
+  FROM participantes p
+  JOIN cabildos cbl ON cbl.id = p.id_cabildo
+  LEFT JOIN regiones reg ON reg.id = cbl.idregion
+  WHERE
+    p.id_cabildo IS NOT NULL
+    AND p.telefono IS NOT NULL
+    AND btrim(p.telefono) <> ''
+    AND p.telefono <> $1
+),
+filtered_participants AS (
+  SELECT *
+  FROM participants_base pb
+  WHERE
+    ($3::int  IS NULL OR pb.id_cabildo = $3::int)
+    AND ($4::text IS NULL OR pb.region_cabildo = $4::text)
+    AND ($5::text IS NULL OR pb.genero = $5::text)
+    AND ($6::text IS NULL OR pb.age_group = $6::text)
+    AND ($7::text IS NULL OR pb.nivelinstruccion = $7::text)
+    AND ($8::text IS NULL OR pb.grupoetnico = $8::text)
+),
+comments_by_station AS (
+  SELECT
+    fp.participant_id,
+    e.id AS idestacion,
+    c.texto AS comentario,
+    c.id AS comentario_id
+  FROM filtered_participants fp
+  JOIN comentariosparticipantes cp ON cp.idparticipante = fp.participant_id
+  JOIN comentarios c ON c.id = cp.idcomentario
+  JOIN estaciones e ON e.id = c.idestacion
+  WHERE
+    e.id = ANY($2::int[])
+    AND ($9::int IS NULL OR e.id = $9::int)
+),
+pivoted AS (
+  SELECT
+    fp.fecha,
+    fp.participant_id,
+    fp.cabildo,
+    fp.region_cabildo,
+    fp.region_procedencia,
+    fp.telefono,
+    fp.genero,
+    fp.age_group,
+    fp.nivelinstruccion,
+    fp.grupoetnico,
+
+    COALESCE(
+      string_agg(com.comentario, E'\n\n' ORDER BY com.comentario_id)
+      FILTER (WHERE com.idestacion = 14),
+      ''
+    ) AS e1_catarsis,
+
+    COALESCE(
+      string_agg(com.comentario, E'\n\n' ORDER BY com.comentario_id)
+      FILTER (WHERE com.idestacion = 11),
+      ''
+    ) AS e2_circunstancias,
+
+    COALESCE(
+      string_agg(com.comentario, E'\n\n' ORDER BY com.comentario_id)
+      FILTER (WHERE com.idestacion = 12),
+      ''
+    ) AS e3_yo_presidente,
+
+    COALESCE(
+      string_agg(com.comentario, E'\n\n' ORDER BY com.comentario_id)
+      FILTER (WHERE com.idestacion = 15),
+      ''
+    ) AS cierre
+
+  FROM filtered_participants fp
+  LEFT JOIN comments_by_station com ON com.participant_id = fp.participant_id
+  GROUP BY
+    fp.fecha, fp.participant_id, fp.cabildo, fp.region_cabildo, fp.region_procedencia,
+    fp.telefono, fp.genero, fp.age_group, fp.nivelinstruccion, fp.grupoetnico
+)
+SELECT
+  (SELECT COUNT(*)::int FROM pivoted) AS total,
+  (SELECT COALESCE(jsonb_agg(to_jsonb(t)), '[]'::jsonb)
+   FROM (
+     SELECT *
+     FROM pivoted
+     ORDER BY fecha DESC
+     LIMIT $10 OFFSET $11
+   ) t
+  ) AS rows
+;
+
     `;
 
     const res = await query(sql, [

@@ -52,7 +52,15 @@ export function sentence_case(str: string) {
     return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 }
 export function toPgVectorLiteral(vec: number[]) {
-  // pgvector expects: [1,2,3]
-  // ensure plain numbers (no quotes) and stable decimal formatting
-  return `[${vec.map((n) => (Number.isFinite(n) ? n : 0)).join(",")}]`;
+    // pgvector expects: [1,2,3]
+    // ensure plain numbers (no quotes) and stable decimal formatting
+    return `[${vec.map((n) => (Number.isFinite(n) ? n : 0)).join(",")}]`;
+}
+export function buildPercentRows(labels: string[], values: number[]) {
+    const total = values.reduce((a, b) => a + b, 0) || 1;
+    return labels.map((label, i) => {
+        const v = values[i] ?? 0;
+        const pct = (v / total) * 100;
+        return { label, value: v, pct };
+    });
 }

@@ -6,7 +6,6 @@ export const GET = async (request: Request) => {
 
         const programIdRaw = searchParams.get("programId");
         const topicIdRaw = searchParams.get("topicId");
-        const statusRaw = searchParams.get("status");
 
         const programId =
             programIdRaw && /^\d+$/.test(programIdRaw) ? Number(programIdRaw) : null;
@@ -14,8 +13,6 @@ export const GET = async (request: Request) => {
         // allow "null" or empty => no filter
         const topicId =
             topicIdRaw && /^\d+$/.test(topicIdRaw) ? Number(topicIdRaw) : null;
-
-        const status = statusRaw ? String(statusRaw).trim() : "";
 
         const page = Math.max(1, Number(searchParams.get("page") || "1"));
         const pageSize = Math.min(
@@ -73,7 +70,7 @@ export const GET = async (request: Request) => {
       ;
     `;
 
-        const res = await query(sql, [programId, topicId, status, pageSize, offset]);
+        const res = await query(sql, [programId, topicId, "done", pageSize, offset]);
         const row = res.rows?.[0] ?? {};
 
         return new Response(

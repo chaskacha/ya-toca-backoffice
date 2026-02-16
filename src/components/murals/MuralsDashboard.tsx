@@ -52,15 +52,10 @@ function toChartData(obj: Breakdown) {
     return { labels, values };
 }
 
-export default function MuralsDashboard() {
+export default function MuralsDashboard({ filters }: { filters: { regionId: string; eventId: string } }) {
     const [data, setData] = React.useState<ApiResponse | null>(null);
     const [loading, setLoading] = React.useState(true);
     const [loadingFilters, setLoadingFilters] = React.useState(true);
-
-    const [filters, setFilters] = React.useState({
-        regionId: "",
-        eventId: "",
-    });
 
     const [filtersApi, setFiltersApi] = React.useState<FiltersApi | null>(null);
     const [eventsList, setEventsList] = React.useState<EventItem[]>([]);
@@ -113,7 +108,7 @@ export default function MuralsDashboard() {
 
         const qs = params.toString();
         return qs ? `/api/murals/dashboard?${qs}` : `/api/murals/dashboard`;
-    }, [filters]);
+    }, [filters.regionId, filters.eventId]);
 
     // Fetch dashboard whenever filters change
     React.useEffect(() => {
@@ -135,32 +130,8 @@ export default function MuralsDashboard() {
 
     const phrasesByEvent = React.useMemo(() => (data ? toChartData(data.breakdown.events) : null), [data]);
 
-    const regionOptions: Option[] = React.useMemo(() => {
-        const list = filtersApi?.regions ?? [];
-        return [{ label: "Todas", value: "" }, ...list.map((r) => ({ label: r.nombreregion, value: String(r.id) }))];
-    }, [filtersApi]);
-
-    const eventOptions = React.useMemo(() => {
-        const list = eventsList ?? [];
-        return [
-            { label: "Todos", value: "" },
-            ...list.map((e) => {
-                return { label: `${e.name_event}`, value: String(e.id) };
-            }),
-        ];
-    }, [eventsList]);
-
     const eventLabels = React.useMemo(() => phrasesByEvent?.labels ?? [], [phrasesByEvent]);
     const eventValues = React.useMemo(() => phrasesByEvent?.values ?? [], [phrasesByEvent]);
-    const eventColors = React.useMemo(
-        () => eventLabels.map((_, i) => CHART_COLORS.cabildos[i % CHART_COLORS.cabildos.length]),
-        [eventLabels]
-    );
-
-    const eventsDynamicHeight = React.useMemo(() => {
-        if (!isTabletOrLess) return 420;
-        return Math.max(360, eventLabels.length * 34);
-    }, [isTabletOrLess, eventLabels.length]);
 
     if (loadingFilters) return <div className="dash-loading">Cargando filtros...</div>;
     if (loading) return <div className="dash-loading">Cargando dashboard...</div>;
@@ -174,71 +145,100 @@ export default function MuralsDashboard() {
 
             <br />
 
-            <div
-                style={{
-                    display: "flex",
-                    gap: 16,
-                    flexWrap: "wrap",
-                    marginBottom: 16,
-                    alignItems: "flex-end",
-                }}
-            >
-                <Filter
-                    label="Región"
-                    value={filters.regionId}
-                    onChange={(v) => setFilters((p) => ({ ...p, regionId: v, eventId: "" }))}
-                    options={regionOptions}
-                />
-
-                <Filter
-                    label="Evento"
-                    value={filters.eventId}
-                    onChange={(v) => setFilters((p) => ({ ...p, eventId: v }))}
-                    options={eventOptions}
-                />
-
-                <button
-                    onClick={() => setFilters({ regionId: "", eventId: "" })}
-                    style={{
-                        height: 40,
-                        padding: "0 12px",
-                        borderRadius: 8,
-                        border: "1px solid #ddd",
-                        background: "#fff",
-                    }}
-                >
-                    Limpiar
-                </button>
-            </div>
-
-            <br />
-
             <div className="dash-grid">
                 <Card title="Frases por Evento" scrollY maxBodyHeight={420}>
-                    <div style={{ height: eventsDynamicHeight, width: "100%" }}>
-                        <Bar
-                            data={{
-                                labels: eventLabels,
-                                datasets: [{ data: eventValues, backgroundColor: eventColors }],
-                            }}
-                            options={{
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                indexAxis: isTabletOrLess ? "y" : "x",
-                                plugins: { legend: { display: false } },
-                                scales: isTabletOrLess
-                                    ? {
-                                        x: { ticks: { precision: 0 } },
-                                        y: { ticks: { autoSkip: false, font: { size: 12 } }, grid: { display: false } },
-                                    }
-                                    : {
-                                        x: { ticks: { autoSkip: true, maxRotation: 25, minRotation: 0 } },
-                                        y: { ticks: { precision: 0 } },
-                                    },
-                            }}
-                        />
-                    </div>
+                    {(() => {
+                        const rows = (eventLabels ?? []).map((label, i) => ({
+                            evento: label,
+                            frases: Number(eventValues?.[i] ?? 0),
+                        }));
+
+                        const total = rows.reduce((a, r) => a + r.frases, 0) || 1;
+
+                        // optional: sort desc by count
+                        rows.sort((a, b) => b.frases - a.frases);
+
+                        return (
+                            <div style={{ width: "100%", overflowX: "auto" }}>
+                                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                                    <thead>
+                                        <tr style={{ textAlign: "left" }}>
+                                            <th style={{ padding: "10px 8px", borderBottom: "1px solid rgba(0,0,0,0.08)" }}>
+                                                Evento
+                                            </th>
+                                            <th
+                                                style={{
+                                                    padding: "10px 8px",
+                                                    borderBottom: "1px solid rgba(0,0,0,0.08)",
+                                                    textAlign: "right",
+                                                    whiteSpace: "nowrap",
+                                                }}
+                                            >
+                                                Frases
+                                            </th>
+                                            <th
+                                                style={{
+                                                    padding: "10px 8px",
+                                                    borderBottom: "1px solid rgba(0,0,0,0.08)",
+                                                    textAlign: "right",
+                                                    whiteSpace: "nowrap",
+                                                }}
+                                            >
+                                                %
+                                            </th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        {rows.map((r) => {
+                                            const pct = ((r.frases / total) * 100).toFixed(1);
+                                            return (
+                                                <tr key={r.evento}>
+                                                    <td style={{ padding: "8px", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
+                                                        {r.evento}
+                                                    </td>
+                                                    <td
+                                                        style={{
+                                                            padding: "8px",
+                                                            borderBottom: "1px solid rgba(0,0,0,0.06)",
+                                                            textAlign: "right",
+                                                            fontVariantNumeric: "tabular-nums",
+                                                        }}
+                                                    >
+                                                        {r.frases}
+                                                    </td>
+                                                    <td
+                                                        style={{
+                                                            padding: "8px",
+                                                            borderBottom: "1px solid rgba(0,0,0,0.06)",
+                                                            textAlign: "right",
+                                                            fontVariantNumeric: "tabular-nums",
+                                                            whiteSpace: "nowrap",
+                                                            opacity: 0.85,
+                                                        }}
+                                                    >
+                                                        {pct}%
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+
+                                    <tfoot>
+                                        <tr>
+                                            <td style={{ padding: "10px 8px", fontWeight: 700 }}>Total</td>
+                                            <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700 }}>
+                                                {rows.reduce((a, r) => a + r.frases, 0)}
+                                            </td>
+                                            <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700 }}>100%</td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        );
+                    })()}
                 </Card>
+
             </div>
         </div>
     );

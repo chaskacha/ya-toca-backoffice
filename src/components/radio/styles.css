@@ -46,8 +46,7 @@
     min-height: 260px;
     display: flex;
     align-items: center;
-    justify-content: flex-start;
-    padding-top: 16px;
+    justify-content: center;
 }
 
 /* Center text over doughnut */

@@ -1,15 +1,29 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import './styles.css'
 import { LogoWhite } from '@/constants/svgs'
 import Link from "next/link";
 import { usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
 const SidebarMenu: React.FC = () => {
     const pathname = usePathname();
+    const user = typeof window !== "undefined" ? localStorage.getItem("admin_user") : "";
+    const router = useRouter();
+    const logout = () => {
+        localStorage.removeItem("admin_logged");
+        localStorage.removeItem("admin_user");
+        router.push("/admin/login");
+    }
+
+    useEffect(() => {
+        if (!user) {
+            logout();
+        }
+    }, []);
 
     const menuItems = [
         { href: '/cabildos', name: 'Cabildos' },
-        { href: '/murals', name: 'Murales' },
+        { href: '/activaciones', name: 'Activaciones' },
         { href: '/darkroom', name: 'Dark Room' },
         { href: '/radio', name: 'Radio' },
         { href: '/videos', name: 'Videos' },
@@ -31,6 +45,8 @@ const SidebarMenu: React.FC = () => {
                     </Link>
                 ))}
             </div>
+            <div style={{ height: 68 }} />
+            <div className='sidebar-menu-item' onClick={logout}>Cerrar sesión</div>
         </div>
     )
 }

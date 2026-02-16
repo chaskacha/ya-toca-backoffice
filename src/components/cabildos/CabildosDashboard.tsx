@@ -16,6 +16,8 @@ import { colorsFromMap } from "@/utils/chartHelper";
 import { CHART_COLORS } from "@/constants/chartColors";
 import Filter from "../basic/filter/Filter";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { buildPercentRows } from "@/constants/functions";
+import Card from "../commons/common/Card";
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
@@ -45,16 +47,17 @@ function toChartData(obj: Breakdown) {
     return { labels, values };
 }
 
-export default function CabildosDashboard() {
+export default function CabildosDashboard({ filters }: { filters: {
+  cabildoId: string;
+  region: string;
+  age: string;
+  gender: string;
+  nivelinstruccion: string;
+  grupoetnico: string;
+  stationId: string;
+}}) {
     const [data, setData] = React.useState<ApiResponse | null>(null);
     const [loading, setLoading] = React.useState(true);
-
-    const [filters, setFilters] = React.useState({
-        region: "",
-        age: "",
-        gender: "",
-        cabildoId: "",
-    });
 
     const [cabildosList, setCabildosList] = React.useState<CabildoItem[]>([]);
 
@@ -163,6 +166,7 @@ export default function CabildosDashboard() {
     if (loading) return <div className="dash-loading">Cargando dashboard...</div>;
     if (!data) return <div className="dash-loading">No se pudo cargar la data.</div>;
 
+
     return (
         <div className="dash-container">
             <div className="fs18 fw700">
@@ -171,203 +175,359 @@ export default function CabildosDashboard() {
 
             <br />
 
-            <div
-                style={{
-                    display: "flex",
-                    gap: 16,
-                    flexWrap: "wrap",
-                    marginBottom: 16,
-                    alignItems: "flex-end",
-                }}
-            >
-                <Filter
-                    label="Cabildo"
-                    value={filters.cabildoId}
-                    onChange={(v) => setFilters((p) => ({ ...p, cabildoId: v }))}
-                    options={cabildoOptions}
-                />
-
-                <Filter
-                    label="Edad"
-                    value={filters.age}
-                    onChange={(v) => setFilters((p) => ({ ...p, age: v }))}
-                    options={ageOptions}
-                />
-
-                <Filter
-                    label="Género"
-                    value={filters.gender}
-                    onChange={(v) => setFilters((p) => ({ ...p, gender: v }))}
-                    options={genderOptions}
-                />
-
-                <Filter
-                    label="Región"
-                    value={filters.region}
-                    onChange={(v) => setFilters((p) => ({ ...p, region: v }))}
-                    options={regionOptions}
-                />
-
-                <button
-                    onClick={() => setFilters({ region: "", age: "", gender: "", cabildoId: "" })}
-                    style={{
-                        height: 40,
-                        padding: "0 12px",
-                        borderRadius: 8,
-                        border: "1px solid #ddd",
-                        background: "#fff",
-                    }}
-                >
-                    Limpiar
-                </button>
-            </div>
-
-            <br />
-
             <div className="dash-grid">
-                <Card title="Edad">
-                    {age && (
-                        <Doughnut
-                            data={{
-                                labels: age.labels,
-                                datasets: [
-                                    {
-                                        data: age.values,
-                                        backgroundColor: colorsFromMap(age.labels, CHART_COLORS.age),
-                                        borderWidth: 0,
-                                    },
-                                ],
-                            }}
-                            options={{
-                                cutout: "70%",
-                                plugins: {
-                                    legend: { position: "bottom" },
-                                },
-                            }}
-                        />
-                    )}
-                </Card>
+                <Card title="Edad" scrollY maxBodyHeight={600} minHeight={400}>
+                    {age && (() => {
+                        const rows = buildPercentRows(age.labels, age.values);
 
-                <Card title="Género">
-                    {gender && (
-                        <Doughnut
-                            data={{
-                                labels: gender.labels,
-                                datasets: [
-                                    {
-                                        data: gender.values,
-                                        backgroundColor: colorsFromMap(gender.labels, CHART_COLORS.gender),
-                                        borderWidth: 0,
-                                    },
-                                ],
-                            }}
-                            options={{
-                                cutout: "70%",
-                                plugins: {
-                                    legend: { position: "bottom" },
-                                },
-                            }}
-                        />
-                    )}
-                </Card>
-
-                <Card title="Regiones" scrollY maxBodyHeight={400}>
-                    {regions && (
-                        <Doughnut
-                            data={{
-                                labels: regions.labels,
-                                datasets: [
-                                    {
-                                        data: regions.values,
-                                        backgroundColor: colorsFromMap(regions.labels, CHART_COLORS.regions),
-                                        borderWidth: 0,
-                                    },
-                                ],
-                            }}
-                            options={{
-                                cutout: "70%",
-                                plugins: {
-                                    legend: { position: "bottom" },
-                                },
-                            }}
-                        />
-                    )}
-                </Card>
-            </div>
-
-            <div className="dash-grid-2">
-                <Card title="Participantes por Cabildo">
-                    <div style={{ height: cabildosDynamicHeight, width: "100%" }}>
-                        <Bar
-                            data={{
-                                labels: cabildoLabels,
-                                datasets: [
-                                    {
-                                        data: cabildoValues,
-                                        backgroundColor: cabildoColors,
-                                    },
-                                ],
-                            }}
-                            options={{
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                indexAxis: isTabletOrLess ? "y" : "x",
-                                plugins: { legend: { display: false } },
-                                scales: isTabletOrLess
-                                    ? {
-                                        x: { ticks: { precision: 0 } },
-                                        y: {
-                                            ticks: { autoSkip: false, font: { size: 12 } },
-                                            grid: { display: false },
+                        return (
+                            <div
+                                style={{
+                                    width: "100%",
+                                    maxWidth: 420,
+                                    minHeight: 200,
+                                    maxHeight: 200,
+                                    margin: "0 auto",
+                                }}>
+                                <Doughnut
+                                    data={{
+                                        labels: age.labels,
+                                        datasets: [
+                                            {
+                                                data: age.values,
+                                                backgroundColor: colorsFromMap(age.labels, CHART_COLORS.age),
+                                                borderWidth: 0,
+                                            },
+                                        ],
+                                    }}
+                                    options={{
+                                        cutout: "70%",
+                                        plugins: {
+                                            legend: { display: false }, // we’ll render our own legend with %
+                                            tooltip: {
+                                                callbacks: {
+                                                    label: (ctx) => {
+                                                        const label = ctx.label || "";
+                                                        const value = Number(ctx.parsed || 0);
+                                                        const total = (ctx.dataset.data as number[]).reduce((a, b) => a + Number(b || 0), 0) || 1;
+                                                        const pct = ((value / total) * 100).toFixed(1);
+                                                        return `${label}: ${value} (${pct}%)`;
+                                                    },
+                                                },
+                                            },
                                         },
-                                    }
-                                    : {
-                                        x: { ticks: { autoSkip: true, maxRotation: 25, minRotation: 0 } },
-                                        y: { ticks: { precision: 0 } },
-                                    },
-                            }}
-                        />
-                    </div>
+                                    }}
+                                />
+
+                                {/* Custom legend with % */}
+                                <div style={{ marginTop: 12, fontSize: 13 }}>
+                                    {rows.map((r) => (
+                                        <div
+                                            key={r.label}
+                                            style={{
+                                                display: "flex",
+                                                justifyContent: "space-between",
+                                                gap: 12,
+                                                padding: "6px 0",
+                                                borderBottom: "1px solid rgba(0,0,0,0.06)",
+                                            }}
+                                        >
+                                            <span>{r.label}</span>
+                                            <span style={{ opacity: 0.85 }}>
+                                                {r.value} · {r.pct.toFixed(1)}%
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        );
+                    })()}
+                </Card>
+
+                <Card title="Género" scrollY maxBodyHeight={600} minHeight={400}>
+                    {gender && (() => {
+                        const rows = buildPercentRows(gender.labels, gender.values);
+
+                        return (
+                            <div
+                                style={{
+                                    width: "100%",
+                                    maxWidth: 420,
+                                    minHeight: 200,
+                                    maxHeight: 200,
+                                    margin: "0 auto",
+                                }}>
+                                <Doughnut
+                                    data={{
+                                        labels: gender.labels,
+                                        datasets: [
+                                            {
+                                                data: gender.values,
+                                                backgroundColor: colorsFromMap(gender.labels, CHART_COLORS.gender),
+                                                borderWidth: 0,
+                                            },
+                                        ],
+                                    }}
+                                    options={{
+                                        cutout: "70%",
+                                        plugins: {
+                                            legend: { display: false }, // we’ll render our own legend with %
+                                            tooltip: {
+                                                callbacks: {
+                                                    label: (ctx) => {
+                                                        const label = ctx.label || "";
+                                                        const value = Number(ctx.parsed || 0);
+                                                        const total =
+                                                            (ctx.dataset.data as number[]).reduce(
+                                                                (a, b) => a + Number(b || 0),
+                                                                0
+                                                            ) || 1;
+                                                        const pct = ((value / total) * 100).toFixed(1);
+                                                        return `${label}: ${value} (${pct}%)`;
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    }}
+                                />
+
+                                {/* List with % (always visible) */}
+                                <div style={{ marginTop: 12, fontSize: 13, maxWidth: 420, marginInline: "auto" }}>
+                                    {rows.map((r) => (
+                                        <div
+                                            key={r.label}
+                                            style={{
+                                                display: "flex",
+                                                justifyContent: "space-between",
+                                                gap: 12,
+                                                padding: "6px 0",
+                                                borderBottom: "1px solid rgba(0,0,0,0.06)",
+                                            }}
+                                        >
+                                            <span>{r.label}</span>
+                                            <span style={{ opacity: 0.85 }}>
+                                                {r.value} · {r.pct.toFixed(1)}%
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        );
+                    })()}
+                </Card>
+
+                <Card title="Regiones" scrollY maxBodyHeight={600} minHeight={400}>
+                    {regions && (() => {
+                        const labels = regions.labels ?? [];
+                        const values = regions.values ?? [];
+                        const colors = colorsFromMap(labels, CHART_COLORS.regions);
+
+                        const rows = labels.map((label, i) => ({
+                            label,
+                            value: Number(values[i] ?? 0),
+                            color: (colors as any[])?.[i],
+                        }));
+
+                        const total = rows.reduce((a, r) => a + r.value, 0);
+                        const denom = total || 1;
+
+                        // optional: sort desc
+                        rows.sort((a, b) => b.value - a.value);
+
+                        return (
+                            <div style={{ width: "100%", overflowX: "auto" }}>
+                                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                                    <thead>
+                                        <tr style={{ textAlign: "left" }}>
+                                            <th style={{ padding: "10px 8px", borderBottom: "1px solid rgba(0,0,0,0.08)" }}>
+                                                Región
+                                            </th>
+                                            <th
+                                                style={{
+                                                    padding: "10px 8px",
+                                                    borderBottom: "1px solid rgba(0,0,0,0.08)",
+                                                    textAlign: "right",
+                                                    whiteSpace: "nowrap",
+                                                }}
+                                            >
+                                                Registros
+                                            </th>
+                                            <th
+                                                style={{
+                                                    padding: "10px 8px",
+                                                    borderBottom: "1px solid rgba(0,0,0,0.08)",
+                                                    textAlign: "right",
+                                                    whiteSpace: "nowrap",
+                                                }}
+                                            >
+                                                %
+                                            </th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        {rows.map((r) => {
+                                            const pct = ((r.value / denom) * 100).toFixed(1);
+                                            return (
+                                                <tr key={r.label}>
+                                                    <td style={{ padding: "8px", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
+                                                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                                            {r.color ? (
+                                                                <span
+                                                                    aria-hidden
+                                                                    style={{
+                                                                        width: 10,
+                                                                        height: 10,
+                                                                        borderRadius: 999,
+                                                                        background: r.color,
+                                                                        flex: "0 0 auto",
+                                                                    }}
+                                                                />
+                                                            ) : null}
+                                                            <span>{r.label}</span>
+                                                        </div>
+                                                    </td>
+
+                                                    <td
+                                                        style={{
+                                                            padding: "8px",
+                                                            borderBottom: "1px solid rgba(0,0,0,0.06)",
+                                                            textAlign: "right",
+                                                            fontVariantNumeric: "tabular-nums",
+                                                        }}
+                                                    >
+                                                        {r.value}
+                                                    </td>
+
+                                                    <td
+                                                        style={{
+                                                            padding: "8px",
+                                                            borderBottom: "1px solid rgba(0,0,0,0.06)",
+                                                            textAlign: "right",
+                                                            fontVariantNumeric: "tabular-nums",
+                                                            whiteSpace: "nowrap",
+                                                            opacity: 0.85,
+                                                        }}
+                                                    >
+                                                        {pct}%
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+
+                                    <tfoot>
+                                        <tr>
+                                            <td style={{ padding: "10px 8px", fontWeight: 700 }}>Total</td>
+                                            <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700 }}>
+                                                {total}
+                                            </td>
+                                            <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700 }}>
+                                                {total ? "100%" : "0%"}
+                                            </td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        );
+                    })()}
                 </Card>
             </div>
-        </div>
-    );
-}
 
-function Card({
-    title,
-    children,
-    centerText,
-    scrollY = false,
-    maxBodyHeight = 520,
-}: {
-    title: string;
-    children: React.ReactNode;
-    centerText?: string;
-    scrollY?: boolean;
-    maxBodyHeight?: number;
-}) {
-    return (
-        <div className="dash-card">
-            <div className="dash-card-title">{title}</div>
+            {!filters.cabildoId && <div className="dash-grid-2">
+                <Card title="Participantes por Cabildo" scrollY maxBodyHeight={520}>
+                    {(() => {
+                        const rows = (cabildoLabels ?? []).map((label, i) => ({
+                            cabildo: label,
+                            participantes: Number(cabildoValues?.[i] ?? 0),
+                        }));
 
-            <div
-                className="dash-card-body"
-                style={
-                    scrollY
-                        ? {
-                            maxHeight: maxBodyHeight,
-                            overflowY: "auto",
-                            overflowX: "hidden",
-                        }
-                        : undefined
-                }
-            >
-                <div className="dash-chart-wrap">
-                    {centerText ? <div className="dash-center-text">{centerText}</div> : null}
-                    {children}
-                </div>
-            </div>
+                        const total = rows.reduce((a, r) => a + r.participantes, 0) || 1;
+
+                        // optional: sort desc by participants
+                        rows.sort((a, b) => b.participantes - a.participantes);
+
+                        return (
+                            <div style={{ width: "100%", overflowX: "auto" }}>
+                                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                                    <thead>
+                                        <tr style={{ textAlign: "left" }}>
+                                            <th style={{ padding: "10px 8px", borderBottom: "1px solid rgba(0,0,0,0.08)" }}>
+                                                Cabildo
+                                            </th>
+                                            <th
+                                                style={{
+                                                    padding: "10px 8px",
+                                                    borderBottom: "1px solid rgba(0,0,0,0.08)",
+                                                    textAlign: "right",
+                                                    whiteSpace: "nowrap",
+                                                }}
+                                            >
+                                                Participantes
+                                            </th>
+                                            <th
+                                                style={{
+                                                    padding: "10px 8px",
+                                                    borderBottom: "1px solid rgba(0,0,0,0.08)",
+                                                    textAlign: "right",
+                                                    whiteSpace: "nowrap",
+                                                }}
+                                            >
+                                                %
+                                            </th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        {rows.map((r) => {
+                                            const pct = ((r.participantes / total) * 100).toFixed(1);
+                                            return (
+                                                <tr key={r.cabildo}>
+                                                    <td style={{ padding: "8px", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
+                                                        {r.cabildo}
+                                                    </td>
+                                                    <td
+                                                        style={{
+                                                            padding: "8px",
+                                                            borderBottom: "1px solid rgba(0,0,0,0.06)",
+                                                            textAlign: "right",
+                                                            fontVariantNumeric: "tabular-nums",
+                                                        }}
+                                                    >
+                                                        {r.participantes}
+                                                    </td>
+                                                    <td
+                                                        style={{
+                                                            padding: "8px",
+                                                            borderBottom: "1px solid rgba(0,0,0,0.06)",
+                                                            textAlign: "right",
+                                                            fontVariantNumeric: "tabular-nums",
+                                                            whiteSpace: "nowrap",
+                                                            opacity: 0.85,
+                                                        }}
+                                                    >
+                                                        {pct}%
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+
+                                    <tfoot>
+                                        <tr>
+                                            <td style={{ padding: "10px 8px", fontWeight: 700 }}>Total</td>
+                                            <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700 }}>
+                                                {rows.reduce((a, r) => a + r.participantes, 0)}
+                                            </td>
+                                            <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700 }}>100%</td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        );
+                    })()}
+                </Card>
+            </div>}
         </div>
     );
 }

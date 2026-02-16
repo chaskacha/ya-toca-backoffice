@@ -6,7 +6,11 @@ export default function RootRedirect() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace('/cabildos');
+    if (localStorage.getItem("admin_logged") !== "true") {
+      router.push("/admin/login");
+    } else {
+      router.replace('/cabildos');
+    }
   }, [router]);
 
   return null;

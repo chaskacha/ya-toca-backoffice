@@ -1,9 +1,9 @@
 "use client";
 
 import React from "react";
-import Filter from "@/components/basic/filter/Filter";
 import { useRouter } from "next/navigation";
 import CompareModalRadio, { CompareModalValueRadio } from "@/components/radio/CompareModalRadio";
+import type { RadioFiltersState } from "@/app/radio/page";
 
 type FiltersApi = {
     programs: { id: number; name_program: string }[];
@@ -24,13 +24,11 @@ type Row = {
 
     mp3_url: string;
 
-    status: string; // pending|processing|done|error
+    status: string;
     error?: string | null;
 
     transcript_text?: string | null;
 };
-
-type Option = { label: string; value: string };
 
 function badgeStyle(status: string): React.CSSProperties {
     const s = String(status || "").toLowerCase();
@@ -54,13 +52,16 @@ function badgeStyle(status: string): React.CSSProperties {
     return base;
 }
 
-export default function RadioEpisodesTable() {
+export default function RadioEpisodesTable({
+    filters,
+    filtersApi,
+    loadingFilters,
+}: {
+    filters: RadioFiltersState;
+    filtersApi: FiltersApi | null;
+    loadingFilters?: boolean;
+}) {
     const router = useRouter();
-
-    const [filtersApi, setFiltersApi] = React.useState<FiltersApi | null>(null);
-    const [loadingFilters, setLoadingFilters] = React.useState(true);
-
-    const [filters, setFilters] = React.useState({ programId: "", topicId: "" });
 
     const [loading, setLoading] = React.useState(true);
     const [rows, setRows] = React.useState<Row[]>([]);
@@ -71,24 +72,6 @@ export default function RadioEpisodesTable() {
 
     const [compareOpen, setCompareOpen] = React.useState(false);
 
-    // load filters once
-    React.useEffect(() => {
-        const run = async () => {
-            try {
-                setLoadingFilters(true);
-                const res = await fetch("/api/radio/filters");
-                const json = (await res.json()) as FiltersApi;
-                setFiltersApi(json);
-            } catch (e) {
-                console.error(e);
-                setFiltersApi(null);
-            } finally {
-                setLoadingFilters(false);
-            }
-        };
-        run();
-    }, []);
-
     const buildUrl = React.useCallback(() => {
         const params = new URLSearchParams();
         if (filters.programId) params.set("programId", filters.programId);
@@ -98,7 +81,7 @@ export default function RadioEpisodesTable() {
         return `/api/radio/episodes/list?${params.toString()}`;
     }, [filters.programId, filters.topicId, page]);
 
-    // reset page when filters change
+    // reset page when shared filters change
     React.useEffect(() => {
         setPage(1);
     }, [filters.programId, filters.topicId]);
@@ -123,22 +106,7 @@ export default function RadioEpisodesTable() {
         run();
     }, [buildUrl]);
 
-    const programOptions: Option[] = React.useMemo(() => {
-        const list = filtersApi?.programs ?? [];
-        return [{ label: "Todos", value: "" }, ...list.map((p) => ({ label: p.name_program, value: String(p.id) }))];
-    }, [filtersApi]);
-
-    const topicOptions: Option[] = React.useMemo(() => {
-        const list = filtersApi?.topics ?? [];
-        return [
-            { label: "Todos", value: "" },
-            { label: "Sin tema", value: "null" },
-            ...list.map((t) => ({ label: t.topic_name, value: String(t.id) })),
-        ];
-    }, [filtersApi]);
-
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
-
     const [openTranscriptId, setOpenTranscriptId] = React.useState<number | null>(null);
 
     return (
@@ -146,35 +114,7 @@ export default function RadioEpisodesTable() {
             <div className="fs18 fw700">Episodios</div>
             <div style={{ height: 10 }} />
 
-            <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-end" }}>
-                <Filter
-                    label="Programa"
-                    value={filters.programId}
-                    onChange={(v) => setFilters((p) => ({ ...p, programId: v }))}
-                    options={programOptions}
-                />
-
-                <Filter
-                    label="Topic"
-                    value={filters.topicId}
-                    onChange={(v) => setFilters((p) => ({ ...p, topicId: v }))}
-                    options={topicOptions}
-                />
-
-                <button
-                    onClick={() => setFilters({ programId: "", topicId: "" })}
-                    style={{ height: 40, padding: "0 12px", borderRadius: 8, border: "1px solid #ddd", background: "#fff" }}
-                >
-                    Limpiar
-                </button>
-
-                <button
-                    onClick={() => setCompareOpen(true)}
-                    style={{ height: 40, padding: "0 12px", borderRadius: 8, border: "1px solid #ddd", background: "#000", color: "#fff" }}
-                >
-                    Comparar
-                </button>
-            </div>
+            {/* ✅ Filters removed from here */}
 
             <div style={{ height: 14 }} />
 
@@ -190,9 +130,9 @@ export default function RadioEpisodesTable() {
                         <thead>
                             <tr style={{ textAlign: "left", borderBottom: "1px solid #eee" }}>
                                 <th style={{ padding: 12 }}>Fecha</th>
-                                <th style={{ padding: 12 }}>Programa</th>
-                                <th style={{ padding: 12 }}>Topic</th>
-                                <th style={{ padding: 12 }}>Acciones</th>
+                                <th style={{ padding: 12 }}>Radio</th>
+                                <th style={{ padding: 12 }}>Pregunta estímulo</th>
+                                <th style={{ padding: 12 }}>Respuestas</th>
                             </tr>
                         </thead>
 
@@ -208,45 +148,26 @@ export default function RadioEpisodesTable() {
                                             <td style={{ padding: 12, whiteSpace: "nowrap" }}>
                                                 {(r.aired_at || r.created_at || "").slice(0, 10)}
                                             </td>
+
                                             <td style={{ padding: 12, whiteSpace: "nowrap", fontWeight: 800 }}>
                                                 {r.name_program}
                                             </td>
+
                                             <td style={{ padding: 12, whiteSpace: "wrap", maxWidth: 280, minWidth: 280 }}>
-                                                {r.topic_name ? r.topic_name : "Sin tema"}
+                                                {r.title}
                                             </td>
+
                                             <td style={{ padding: 12, whiteSpace: "wrap", maxWidth: 340, minWidth: 340 }}>
                                                 {r.transcript_text ? r.transcript_text : "No transcript"}
                                             </td>
-                                            {/* <td style={{ padding: 12, whiteSpace: "nowrap" }}>
-                                                <button
-                                                    onClick={() => setOpenTranscriptId(opened ? null : r.id)}
-                                                    style={{ height: 34, padding: "0 10px", borderRadius: 8, border: "1px solid #ddd", background: "#fff", marginRight: 8 }}
-                                                >
-                                                    {opened ? "Ocultar" : "Ver transcript"}
-                                                </button>
-                                            </td> */}
                                         </tr>
-
-
-                                        {/* {opened ? (
-                                            <tr style={{ borderBottom: "1px solid #000" }}>
-                                                <td colSpan={6} style={{ padding: 12, background: "#fafafa" }}>
-                                                    <div style={{ fontSize: 12, color: "#666", marginBottom: 8 }}>
-                                                        Transcript
-                                                    </div>
-                                                    <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.45, color: "#111" }}>
-                                                        {preview || "— Sin transcript todavía. Procesa este episodio para generarlo."}
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ) : null} */}
                                     </React.Fragment>
                                 );
                             })}
 
                             {rows.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} style={{ padding: 16, color: "#777" }}>
+                                    <td colSpan={4} style={{ padding: 16, color: "#777" }}>
                                         No hay resultados con los filtros seleccionados.
                                     </td>
                                 </tr>
@@ -278,6 +199,13 @@ export default function RadioEpisodesTable() {
                         Siguiente
                     </button>
                 </div>
+
+                <button
+                    onClick={() => setCompareOpen(true)}
+                    style={{ height: 40, padding: "0 12px", borderRadius: 8, border: "1px solid #ddd", background: "#000", color: "#fff" }}
+                >
+                    Comparar
+                </button>
             </div>
 
             <CompareModalRadio
@@ -290,7 +218,7 @@ export default function RadioEpisodesTable() {
                     const params = new URLSearchParams();
                     params.set("dimension", val.dimension);
 
-                    // keep current topic filter in compare, so both cohorts share same scope
+                    // keep current topic filter in compare
                     if (filters.topicId) params.set("topicId", filters.topicId);
 
                     val.aValues.forEach((x) => params.append("a", x));

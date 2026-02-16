@@ -10,20 +10,14 @@ import {
     BarElement,
 } from "chart.js";
 import { Bar } from "react-chartjs-2";
-import Filter from "@/components/basic/filter/Filter";
 import { CHART_COLORS } from "@/constants/chartColors";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import "./styles.css";
+import type { VideosFiltersState } from "@/app/videos/page";
 
 ChartJS.register(Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
 type Breakdown = Record<string, number>;
-type Option = { label: string; value: string };
-
-type FiltersApi = {
-    regions: { id: number; nombreregion: string }[];
-    events: { id: number; name_event: string; date_event: string; region_name?: string | null }[];
-};
 
 type ApiResponse = {
     totalVideos: number;
@@ -35,66 +29,23 @@ type ApiResponse = {
     };
 };
 
-type EventItem = {
-    id: number;
-    name_event: string;
-    date_event: string;
-    region_name?: string | null;
-};
-
 function toChartData(obj: Breakdown) {
-    const labels = Object.keys(obj);
-    const values = Object.values(obj);
+    const labels = Object.keys(obj || {});
+    const values = Object.values(obj || {});
     return { labels, values };
 }
 
-export default function VideosDashboard() {
+export default function VideosDashboard({
+    filters,
+    loadingFilters,
+}: {
+    filters: VideosFiltersState;
+    loadingFilters?: boolean;
+}) {
     const [data, setData] = React.useState<ApiResponse | null>(null);
     const [loading, setLoading] = React.useState(true);
-    const [loadingFilters, setLoadingFilters] = React.useState(true);
-
-    const [filters, setFilters] = React.useState({ regionId: "", eventId: "" });
-    const [filtersApi, setFiltersApi] = React.useState<FiltersApi | null>(null);
-    const [eventsList, setEventsList] = React.useState<EventItem[]>([]);
 
     const isTabletOrLess = useMediaQuery("(max-width: 1024px)");
-
-    React.useEffect(() => {
-        const run = async () => {
-            try {
-                setLoadingFilters(true);
-                const res = await fetch("/api/videos/phrases/filters");
-                const json = (await res.json()) as FiltersApi;
-                setFiltersApi(json);
-            } catch (e) {
-                console.error(e);
-                setFiltersApi(null);
-            } finally {
-                setLoadingFilters(false);
-            }
-        };
-        run();
-    }, []);
-
-    React.useEffect(() => {
-        const loadEvents = async () => {
-            try {
-                const params = new URLSearchParams();
-                if (filters.regionId) params.set("regionId", filters.regionId);
-                const url = params.toString()
-                    ? `/api/videos/events/list?${params.toString()}`
-                    : `/api/videos/events/list`;
-
-                const res = await fetch(url);
-                const json = await res.json();
-                setEventsList(json?.events ?? []);
-            } catch (e) {
-                console.error("Failed to load events list", e);
-                setEventsList([]);
-            }
-        };
-        loadEvents();
-    }, [filters.regionId]);
 
     const buildUrl = React.useCallback(() => {
         const params = new URLSearchParams();
@@ -102,7 +53,7 @@ export default function VideosDashboard() {
         if (filters.eventId) params.set("eventId", filters.eventId);
         const qs = params.toString();
         return qs ? `/api/videos/dashboard?${qs}` : `/api/videos/dashboard`;
-    }, [filters]);
+    }, [filters.regionId, filters.eventId]);
 
     React.useEffect(() => {
         const run = async () => {
@@ -125,16 +76,6 @@ export default function VideosDashboard() {
         () => (data ? toChartData(data.breakdown.events) : null),
         [data]
     );
-
-    const regionOptions: Option[] = React.useMemo(() => {
-        const list = filtersApi?.regions ?? [];
-        return [{ label: "Todas", value: "" }, ...list.map((r) => ({ label: r.nombreregion, value: String(r.id) }))];
-    }, [filtersApi]);
-
-    const eventOptions: Option[] = React.useMemo(() => {
-        const list = eventsList ?? [];
-        return [{ label: "Todos", value: "" }, ...list.map((e) => ({ label: e.name_event, value: String(e.id) }))];
-    }, [eventsList]);
 
     const eventLabels = React.useMemo(() => phrasesByEvent?.labels ?? [], [phrasesByEvent]);
     const eventValues = React.useMemo(() => phrasesByEvent?.values ?? [], [phrasesByEvent]);
@@ -160,29 +101,6 @@ export default function VideosDashboard() {
             </div>
 
             <br />
-
-            <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 16, alignItems: "flex-end" }}>
-                <Filter
-                    label="Región"
-                    value={filters.regionId}
-                    onChange={(v) => setFilters((p) => ({ ...p, regionId: v, eventId: "" }))}
-                    options={regionOptions}
-                />
-
-                <Filter
-                    label="Evento"
-                    value={filters.eventId}
-                    onChange={(v) => setFilters((p) => ({ ...p, eventId: v }))}
-                    options={eventOptions}
-                />
-
-                <button
-                    onClick={() => setFilters({ regionId: "", eventId: "" })}
-                    style={{ height: 40, padding: "0 12px", borderRadius: 8, border: "1px solid #ddd", background: "#fff" }}
-                >
-                    Limpiar
-                </button>
-            </div>
 
             <div className="dash-grid">
                 <Card title="Frases por Evento" scrollY maxBodyHeight={420}>

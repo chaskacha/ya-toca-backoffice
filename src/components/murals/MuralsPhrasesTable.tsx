@@ -22,17 +22,12 @@ type Row = {
     photo_url?: string | null;
 };
 
-export default function MuralsPhrasesTable() {
+export default function MuralsPhrasesTable({ filters }: { filters: { regionId: string; eventId: string } }) {
     const [filtersApi, setFiltersApi] = React.useState<FiltersApi | null>(null);
     const [loadingFilters, setLoadingFilters] = React.useState(true);
 
     const router = useRouter();
     const [compareOpen, setCompareOpen] = React.useState(false);
-
-    const [filters, setFilters] = React.useState({
-        regionId: "",
-        eventId: "",
-    });
 
     const [loading, setLoading] = React.useState(true);
     const [rows, setRows] = React.useState<Row[]>([]);
@@ -65,7 +60,7 @@ export default function MuralsPhrasesTable() {
         params.set("page", String(page));
         params.set("pageSize", String(pageSize));
         return `/api/murals/phrases/list?${params.toString()}`;
-    }, [filters, page]);
+    }, [filters.regionId, filters.eventId, page]);
 
     // Reset to page 1 when filters change
     React.useEffect(() => {
@@ -92,21 +87,6 @@ export default function MuralsPhrasesTable() {
         run();
     }, [buildUrl]);
 
-    const regionOptions: Option[] = React.useMemo(() => {
-        const list = filtersApi?.regions ?? [];
-        return [{ label: "Todas", value: "" }, ...list.map((r) => ({ label: r.nombreregion, value: String(r.id) }))];
-    }, [filtersApi]);
-
-    const eventOptions: Option[] = React.useMemo(() => {
-        const list = filtersApi?.events ?? [];
-        return [
-            { label: "Todos", value: "" },
-            ...list.map((e) => {
-                return { label: e.name_event, value: String(e.id) };
-            }),
-        ];
-    }, [filtersApi]);
-
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
     // ✅ IMPORTANT: CompareModal currently supports cabildos/stations/etc.
@@ -132,51 +112,6 @@ export default function MuralsPhrasesTable() {
         <div style={{ marginTop: 28 }}>
             <div className="fs18 fw700">Frases extraídas</div>
             <div style={{ height: 10 }} />
-
-            <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-end" }}>
-                <Filter
-                    label="Región"
-                    value={filters.regionId}
-                    onChange={(v) => setFilters((p) => ({ ...p, regionId: v, eventId: "" }))}
-                    options={regionOptions}
-                />
-
-                <Filter
-                    label="Evento"
-                    value={filters.eventId}
-                    onChange={(v) => setFilters((p) => ({ ...p, eventId: v }))}
-                    options={eventOptions}
-                />
-
-                <button
-                    onClick={() => setFilters({ regionId: "", eventId: "" })}
-                    style={{
-                        height: 40,
-                        padding: "0 12px",
-                        borderRadius: 8,
-                        border: "1px solid #ddd",
-                        background: "#fff",
-                    }}
-                >
-                    Limpiar
-                </button>
-
-                <button
-                    onClick={() => setCompareOpen(true)}
-                    style={{
-                        height: 40,
-                        padding: "0 12px",
-                        borderRadius: 8,
-                        border: "1px solid #ddd",
-                        background: "#000",
-                        color: "#fff",
-                    }}
-                >
-                    Comparar
-                </button>
-            </div>
-
-            <div style={{ height: 14 }} />
 
             {loadingFilters ? <div className="dash-loading">Cargando filtros...</div> : null}
 
