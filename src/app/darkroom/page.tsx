@@ -15,6 +15,7 @@ export type DarkRoomFiltersState = {
     optionId: string;
     age: string;
     gender: string;
+    regionId: string;
 };
 
 type FiltersApi = {
@@ -22,6 +23,7 @@ type FiltersApi = {
     optionsByQuestion: Record<number, { id: number; question_id: number; text: string; sort_order?: number }[]>;
     ageGroups: string[];
     genders: string[];
+    regions: { id: number; name: string }[];
 };
 
 const DEFAULT_FILTERS: DarkRoomFiltersState = {
@@ -29,6 +31,7 @@ const DEFAULT_FILTERS: DarkRoomFiltersState = {
     optionId: "",
     age: "",
     gender: "",
+    regionId: "",
 };
 
 export default function DarkRoom() {
@@ -37,7 +40,6 @@ export default function DarkRoom() {
 
     const [filters, setFilters] = React.useState<DarkRoomFiltersState>(DEFAULT_FILTERS);
 
-    // Load filters once (questions/options/age/gender)
     React.useEffect(() => {
         const run = async () => {
             try {
@@ -67,19 +69,25 @@ export default function DarkRoom() {
         return [{ label: "Todas", value: "" }, ...list.map((o) => ({ label: o.text, value: String(o.id) }))];
     }, [filtersApi, filters.questionId]);
 
-    // If your API provides ageGroups/genders, use them; otherwise keep your fixed list
     const ageOptions: Option[] = React.useMemo(() => {
         const list = filtersApi?.ageGroups?.length
             ? filtersApi.ageGroups
-            : ["16-29", "30-45", "46+", "No especifica"];
+            : ["15-", "16-29", "30-45", "46+", "No especifica"];
         return [{ label: "Todas", value: "" }, ...list.map((x) => ({ label: x, value: x }))];
     }, [filtersApi]);
 
     const genderOptions: Option[] = React.useMemo(() => {
         const list = filtersApi?.genders?.length
             ? filtersApi.genders
-            : ["Femenino", "Masculino", "Prefiero no indicar", "No especifica"];
+            : ["Femenino", "Masculino", "Otro", "No especifica"];
         return [{ label: "Todos", value: "" }, ...list.map((x) => ({ label: x, value: x }))];
+    }, [filtersApi]);
+
+    const regionOptions: Option[] = React.useMemo(() => {
+        const list = filtersApi?.regions?.length
+            ? filtersApi.regions
+            : [{ id: 29, name: "Lima" }, { id: 23, name: "Arequipa" }];
+        return [{ label: "Todas", value: "" }, ...list.map((r) => ({ label: r.name, value: String(r.id) }))];
     }, [filtersApi]);
 
     return (
@@ -87,7 +95,6 @@ export default function DarkRoom() {
             <div className="admin-darkroom">
                 <SafeArea mv={32}>
                     <>
-                        {/* ✅ Shared filters bar (ONE place) */}
                         <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-end" }}>
                             <Filter
                                 label="Pregunta"
@@ -96,7 +103,7 @@ export default function DarkRoom() {
                                     setFilters((p) => ({
                                         ...p,
                                         questionId: v,
-                                        optionId: "", // reset dependent option
+                                        optionId: "",
                                     }))
                                 }
                                 options={questionOptions}
@@ -121,6 +128,13 @@ export default function DarkRoom() {
                                 value={filters.gender}
                                 onChange={(v) => setFilters((p) => ({ ...p, gender: v }))}
                                 options={genderOptions}
+                            />
+
+                            <Filter
+                                label="Región"
+                                value={filters.regionId}
+                                onChange={(v) => setFilters((p) => ({ ...p, regionId: v }))}
+                                options={regionOptions}
                             />
 
                             <button

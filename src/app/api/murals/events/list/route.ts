@@ -2,38 +2,41 @@
 import { query } from "@/lib/db";
 
 export const GET = async (request: Request) => {
-    try {
-        const { searchParams } = new URL(request.url);
-        const regionId = searchParams.get("regionId");
+  try {
+    const { searchParams } = new URL(request.url);
 
-        const regionIdInt = regionId && /^\d+$/.test(regionId) ? Number(regionId) : null;
+    const regionIdRaw = searchParams.get("regionId");
+    const qRaw = searchParams.get("q");
 
-        const sql = `
+    const regionId = regionIdRaw && /^\d+$/.test(regionIdRaw) ? Number(regionIdRaw) : null;
+    const q = qRaw ? String(qRaw).trim() : "";
+
+    const sql = `
       SELECT
-        e.id,
-        e.name_event,
-        e.date_event,
-        e.idregion,
-        r.nombreregion AS region_nombre
-      FROM mural_events e
-      LEFT JOIN regiones r ON r.id = e.idregion
+        ev.id,
+        ev.name,
+        ev.id_region,
+        r.nombreregion AS region_name
+      FROM events ev
+      LEFT JOIN regiones r ON r.id = ev.id_region
       WHERE
-        e.name_event IS NOT NULL AND btrim(e.name_event) <> ''
-        AND ($1::int IS NULL OR e.idregion = $1::int)
-      ORDER BY e.date_event DESC, e.name_event ASC
+        ev.name IS NOT NULL AND btrim(ev.name) <> ''
+        AND ($1::int IS NULL OR ev.id_region = $1::int)
+        AND ($2::text = '' OR ev.name ILIKE '%' || $2::text || '%')
+      ORDER BY ev.name ASC
     `;
 
-        const res = await query(sql, [regionIdInt]);
+    const res = await query(sql, [regionId, q]);
 
-        return new Response(JSON.stringify({ events: res.rows }), {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-        });
-    } catch (e) {
-        console.error("Error loading mural events list:", e);
-        return new Response(JSON.stringify({ error: "Error interno del servidor" }), {
-            status: 500,
-            headers: { "Content-Type": "application/json" },
-        });
-    }
+    return new Response(JSON.stringify({ events: res.rows }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (e) {
+    console.error("Error loading mural events list:", e);
+    return new Response(JSON.stringify({ error: "Error interno del servidor" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 };

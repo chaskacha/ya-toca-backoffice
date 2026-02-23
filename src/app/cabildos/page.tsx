@@ -80,7 +80,7 @@ export default function Cabildos() {
     }, [filtersApi]);
 
     const ageOptions: Option[] = React.useMemo(() => {
-        const list = filtersApi?.ageGroups ?? ["16-29", "30-45", "46+", "No especifica"];
+        const list = filtersApi?.ageGroups ?? ["15-", "16-29", "30-45", "46+", "No especifica"];
         return [{ label: "Todas", value: "" }, ...list.map((a) => ({ label: a, value: a }))];
     }, [filtersApi]);
 

@@ -12,22 +12,19 @@ type Option = { label: string; value: string };
 
 type FiltersApi = {
     regions: { id: number; nombreregion: string }[];
-    events: { id: number; name_event: string; date_event: string; region_name?: string | null }[]; // may exist but we will not rely on it
+    events: { id: number; name: string; id_region: number; region_name?: string | null }[];
 };
 
-type EventItem = {
-    id: number;
-    name_event: string;
-    date_event: string;
-    region_name?: string | null;
-};
+type EventItem = { id: number; name: string; id_region: number; region_name?: string | null };
+type ActivityItem = { id: number; name_event: string; date_event: string | null; id_event: number; event_name?: string | null };
 
 export type MuralsFiltersState = {
     regionId: string;
     eventId: string;
+    activityId: string;
 };
 
-const DEFAULT_FILTERS: MuralsFiltersState = { regionId: "", eventId: "" };
+const DEFAULT_FILTERS: MuralsFiltersState = { regionId: "", eventId: "", activityId: "" };
 
 export default function Murals() {
     const [filtersApi, setFiltersApi] = React.useState<FiltersApi | null>(null);
@@ -35,11 +32,14 @@ export default function Murals() {
 
     const [filters, setFilters] = React.useState<MuralsFiltersState>(DEFAULT_FILTERS);
 
-    // events options DEPEND on regionId (server-side)
+    // Events (depend on regionId)
     const [eventsList, setEventsList] = React.useState<EventItem[]>([]);
     const [loadingEvents, setLoadingEvents] = React.useState(false);
 
-    // Load base filters once (regions list, etc.)
+    // Activities (depend on regionId + eventId)
+    const [activitiesList, setActivitiesList] = React.useState<ActivityItem[]>([]);
+    const [loadingActivities, setLoadingActivities] = React.useState(false);
+
     React.useEffect(() => {
         const run = async () => {
             try {
@@ -57,7 +57,6 @@ export default function Murals() {
         run();
     }, []);
 
-    // Load events whenever regionId changes (exactly like you had)
     React.useEffect(() => {
         const loadEvents = async () => {
             try {
@@ -84,6 +83,33 @@ export default function Murals() {
         loadEvents();
     }, [filters.regionId]);
 
+    React.useEffect(() => {
+        const loadActivities = async () => {
+            try {
+                setLoadingActivities(true);
+
+                const params = new URLSearchParams();
+                if (filters.regionId) params.set("regionId", filters.regionId);
+                if (filters.eventId) params.set("eventId", filters.eventId);
+
+                const url = params.toString()
+                    ? `/api/murals/activities/list?${params.toString()}`
+                    : `/api/murals/activities/list`;
+
+                const res = await fetch(url);
+                const json = await res.json();
+                setActivitiesList(json?.activities ?? []);
+            } catch (e) {
+                console.error("Failed to load activities list", e);
+                setActivitiesList([]);
+            } finally {
+                setLoadingActivities(false);
+            }
+        };
+
+        loadActivities();
+    }, [filters.regionId, filters.eventId]);
+
     const regionOptions: Option[] = React.useMemo(() => {
         const list = filtersApi?.regions ?? [];
         return [{ label: "Todas", value: "" }, ...list.map((r) => ({ label: r.nombreregion, value: String(r.id) }))];
@@ -91,41 +117,54 @@ export default function Murals() {
 
     const eventOptions: Option[] = React.useMemo(() => {
         const list = eventsList ?? [];
-        return [{ label: "Todos", value: "" }, ...list.map((e) => ({ label: e.name_event, value: String(e.id) }))];
+        return [{ label: "Todos", value: "" }, ...list.map((e) => ({ label: e.name, value: String(e.id) }))];
     }, [eventsList]);
 
-    const isLoadingTop = loadingFilters || loadingEvents;
+    const activityOptions: Option[] = React.useMemo(() => {
+        const list = activitiesList ?? [];
+        return [
+            { label: "Todas", value: "" },
+            ...list.map((a) => ({
+                label: `${a.name_event}`,
+                value: String(a.id),
+            })),
+        ];
+    }, [activitiesList]);
+
+    const isLoadingTop = loadingFilters || loadingEvents || loadingActivities;
 
     return (
         <Wrapper>
             <div className="admin-murals">
                 <SafeArea mv={32}>
                     <>
-                        {/* ONE filters bar */}
                         <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-end" }}>
                             <Filter
                                 label="Región"
                                 value={filters.regionId}
-                                onChange={(v) => setFilters((p) => ({ ...p, regionId: v, eventId: "" }))} // reset event on region change
+                                onChange={(v) => setFilters((p) => ({ ...p, regionId: v, eventId: "", activityId: "" }))}
                                 options={regionOptions}
+                                disabled={!!(filters.activityId || filters.eventId)}
                             />
 
                             <Filter
                                 label="Evento"
                                 value={filters.eventId}
-                                onChange={(v) => setFilters((p) => ({ ...p, eventId: v }))}
+                                onChange={(v) => setFilters((p) => ({ ...p, eventId: v, activityId: "" }))}
                                 options={eventOptions}
+                                disabled={!!(filters.activityId)}
+                            />
+
+                            <Filter
+                                label="Actividad"
+                                value={filters.activityId}
+                                onChange={(v) => setFilters((p) => ({ ...p, activityId: v }))}
+                                options={activityOptions}
                             />
 
                             <button
                                 onClick={() => setFilters(DEFAULT_FILTERS)}
-                                style={{
-                                    height: 40,
-                                    padding: "0 12px",
-                                    borderRadius: 8,
-                                    border: "1px solid #ddd",
-                                    background: "#fff",
-                                }}
+                                style={{ height: 40, padding: "0 12px", borderRadius: 8, border: "1px solid #ddd", background: "#fff" }}
                             >
                                 Limpiar
                             </button>

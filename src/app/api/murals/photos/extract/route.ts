@@ -50,7 +50,7 @@ async function extractOnePhoto(args: {
     // 1) Load photo
     const photoRes = await query(
         `
-    SELECT id, event_id, photo_url
+    SELECT id, id_activity, photo_url
     FROM mural_photos
     WHERE id = $1
     LIMIT 1
@@ -63,7 +63,7 @@ async function extractOnePhoto(args: {
         return { photoId, ok: false as const, status: 404, error: "Foto no encontrada" };
     }
 
-    const eventId = Number(photo.event_id);
+    const idActivity = Number(photo.id_activity);
     const photoUrl = String(photo.photo_url);
 
     // 2) Prompt (Spanish). If question exists, include it as context.
@@ -128,7 +128,7 @@ Reglas:
         return {
             photoId,
             ok: true as const,
-            eventId,
+            idActivity,
             question,
             extracted: 0,
             inserted: 0,
@@ -139,7 +139,7 @@ Reglas:
     }
 
     // 4) Insert phrases (skip duplicates for same photo_id + clean_text)
-    // ✅ If question is null => do not set mural_phrases.question (general opinion)
+    // If question is null => do not set mural_phrases.question (general opinion)
     let inserted = 0;
     let skippedExisting = 0;
     const insertedPhraseIds: number[] = [];
@@ -166,19 +166,19 @@ Reglas:
         const ins = question
             ? await query(
                 `
-          INSERT INTO mural_phrases (event_id, photo_id, raw_text, clean_text, confidence, question, created_at)
+          INSERT INTO mural_phrases (id_activity, photo_id, raw_text, clean_text, confidence, question, created_at)
           VALUES ($1, $2, $3, $4, $5, $6, now())
           RETURNING id
           `,
-                [eventId, photoId, p.text, clean, p.confidence, question]
+                [idActivity, photoId, p.text, clean, p.confidence, question]
             )
             : await query(
                 `
-          INSERT INTO mural_phrases (event_id, photo_id, raw_text, clean_text, confidence, created_at)
+          INSERT INTO mural_phrases (id_activity, photo_id, raw_text, clean_text, confidence, created_at)
           VALUES ($1, $2, $3, $4, $5, now())
           RETURNING id
           `,
-                [eventId, photoId, p.text, clean, p.confidence]
+                [idActivity, photoId, p.text, clean, p.confidence]
             );
 
         const id = Number(ins.rows?.[0]?.id);
@@ -230,7 +230,7 @@ Reglas:
     return {
         photoId,
         ok: true as const,
-        eventId,
+        idActivity,
         question,
         extracted: phrases.length,
         inserted,
@@ -245,7 +245,7 @@ export async function POST(req: Request) {
     try {
         const body = (await req.json()) as any;
 
-        // ✅ maxPhrases applies PER PHOTO
+        // maxPhrases applies PER PHOTO
         const maxPhrases = clamp(toInt(body?.maxPhrases, 200), 1, 400);
 
         /**
@@ -297,7 +297,7 @@ export async function POST(req: Request) {
                     openai,
                     photoId: j.photoId,
                     maxPhrases,
-                    question: j.question, // ✅ per-photo question
+                    question: j.question, // per-photo question
                 });
                 results.push(r);
             } catch (e) {

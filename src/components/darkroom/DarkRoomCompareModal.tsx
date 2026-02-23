@@ -30,6 +30,7 @@ function remove(list: string[], v: string) {
 }
 
 const FALLBACK_AGE: Option[] = [
+    { label: "15-", value: "15-" },
     { label: "16-29", value: "16-29" },
     { label: "30-45", value: "30-45" },
     { label: "46+", value: "46+" },

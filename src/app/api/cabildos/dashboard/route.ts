@@ -9,7 +9,7 @@ export const GET = async (request: Request) => {
     const { searchParams } = new URL(request.url);
 
     const region = searchParams.get("region");
-    const age = searchParams.get("age"); // now expects "16-29" | "30-45" | "46+" (from age_group)
+    const age = searchParams.get("age"); // now expects "15-" | "16-29" | "30-45" | "46+" (from age_group)
     const gender = searchParams.get("gender");
     const cabildoId = searchParams.get("cabildoId");
 
@@ -55,7 +55,7 @@ export const GET = async (request: Request) => {
       base AS (
         SELECT
           d.*,
-          c.nombre_de_cabildo AS cabildo_nombre,
+          c.name AS cabildo_nombre,
           COALESCE(NULLIF(btrim(d.age_group), ''), 'No especifica') AS age_group_norm,
           COALESCE(NULLIF(btrim(d.genero), ''), 'No especifica') AS genero_norm
         FROM dedup d
@@ -80,7 +80,7 @@ export const GET = async (request: Request) => {
            SELECT age_group_norm AS k, COUNT(*)::int AS v
            FROM filtered
            GROUP BY age_group_norm
-           ORDER BY CASE age_group_norm WHEN '16-29' THEN 1 WHEN '30-45' THEN 2 WHEN '46+' THEN 3 ELSE 4 END
+           ORDER BY CASE age_group_norm WHEN '15-' THEN 0 WHEN '16-29' THEN 1 WHEN '30-45' THEN 2 WHEN '46+' THEN 3 ELSE 4 END
          ) t
         ) AS age,
 

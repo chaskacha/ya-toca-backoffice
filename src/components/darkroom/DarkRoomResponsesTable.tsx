@@ -1,9 +1,11 @@
+// components/darkroom/DarkRoomResponsesTable.tsx
 'use client';
 
 import React from "react";
 import DarkRoomCompareModal from "@/components/darkroom/DarkRoomCompareModal";
 import { useRouter } from "next/navigation";
 import type { DarkRoomFiltersState } from "@/app/darkroom/page";
+import { get_substring } from "@/constants/functions";
 
 type FiltersApi = {
     questions: { id: number; text: string }[];
@@ -37,7 +39,7 @@ export default function DarkRoomResponsesTable({
     const [rows, setRows] = React.useState<Row[]>([]);
     const [total, setTotal] = React.useState(0);
     const [page, setPage] = React.useState(1);
-    const pageSize = 20;
+    const pageSize = 100;
 
     // (Optional but needed) CompareModal needs filtersApi; keep this fetch here.
     React.useEffect(() => {
@@ -56,6 +58,7 @@ export default function DarkRoomResponsesTable({
 
     const buildUrl = React.useCallback(() => {
         const params = new URLSearchParams();
+        if (filters.regionId) params.set("regionId", filters.regionId);
         if (filters.questionId) params.set("questionId", filters.questionId);
         if (filters.optionId) params.set("optionId", filters.optionId);
         if (filters.age) params.set("age", filters.age);
@@ -63,12 +66,12 @@ export default function DarkRoomResponsesTable({
         params.set("page", String(page));
         params.set("pageSize", String(pageSize));
         return `/api/darkroom/responses/list?${params.toString()}`;
-    }, [filters.questionId, filters.optionId, filters.age, filters.gender, page]);
+    }, [filters.regionId, filters.questionId, filters.optionId, filters.age, filters.gender, page]);
 
     // Reset page when shared filters change
     React.useEffect(() => {
         setPage(1);
-    }, [filters.questionId, filters.optionId, filters.age, filters.gender]);
+    }, [filters.regionId,filters.questionId, filters.optionId, filters.age, filters.gender]);
 
     // Load rows
     React.useEffect(() => {
@@ -97,8 +100,6 @@ export default function DarkRoomResponsesTable({
             <div className="fs18 fw700">Respuestas (Dark Room)</div>
             <div style={{ height: 10 }} />
 
-            {/* Filters removed from here */}
-
             <div style={{ height: 14 }} />
 
             {loadingFilters ? <div className="dash-loading">Cargando filtros...</div> : null}
@@ -117,11 +118,10 @@ export default function DarkRoomResponsesTable({
                 >
                     <div style={{ color: "#666", padding: 12 }}>{total.toLocaleString()} resultados</div>
 
-                    <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1100 }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
                         <thead>
                             <tr style={{ textAlign: "left", borderBottom: "1px solid #eee" }}>
-                                <th style={{ padding: 12 }}>Fecha</th>
-                                <th style={{ padding: 12 }}>Pregunta</th>
+                                {/* <th style={{ padding: 12 }}>Fecha</th> */}
                                 <th style={{ padding: 12 }}>Opción</th>
                                 <th style={{ padding: 12 }}>Edad</th>
                                 <th style={{ padding: 12 }}>Género</th>
@@ -131,9 +131,30 @@ export default function DarkRoomResponsesTable({
                         <tbody>
                             {rows.map((r, idx) => (
                                 <tr key={idx} style={{ borderBottom: "1px solid #000" }}>
-                                    <td style={{ padding: 12, whiteSpace: "nowrap" }}>{String(r.created_at).slice(0, 10)}</td>
-                                    <td style={{ padding: 12, minWidth: 340, whiteSpace: "wrap", maxWidth: 340 }}>{r.question_text}</td>
-                                    <td style={{ padding: 12, minWidth: 280, maxWidth: 280 }}>{r.option_text}</td>
+                                    {/* <td style={{ padding: 12, whiteSpace: "nowrap" }}>
+                                        {String(r.created_at).slice(0, 10)}
+                                    </td> */}
+                                    <td style={{ padding: 12 }}>
+                                        <div style={{ whiteSpace: "normal", wordBreak: "break-word", overflowWrap: "anywhere" }}>
+                                            {r.option_text}
+                                        </div>
+
+                                        <div
+                                            style={{
+                                                marginTop: 4,
+                                                fontSize: 12,
+                                                opacity: 0.7,
+                                                lineHeight: 1.25,
+                                                whiteSpace: "normal",
+                                                wordBreak: "break-word",
+                                                overflowWrap: "anywhere",
+                                                maxWidth: 500
+                                            }}
+                                        >
+                                            {r.question_text}
+                                        </div>
+                                    </td>
+
                                     <td style={{ padding: 12, whiteSpace: "nowrap" }}>{r.age_group}</td>
                                     <td style={{ padding: 12, whiteSpace: "nowrap" }}>{r.gender}</td>
                                 </tr>
@@ -141,7 +162,7 @@ export default function DarkRoomResponsesTable({
 
                             {rows.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} style={{ padding: 16, color: "#777" }}>
+                                    <td colSpan={4} style={{ padding: 16, color: "#777" }}>
                                         No hay resultados con los filtros seleccionados.
                                     </td>
                                 </tr>

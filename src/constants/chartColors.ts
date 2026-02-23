@@ -1,6 +1,7 @@
 export const CHART_COLORS = {
     // --- Age groups ---
     age: {
+        "15-": "#43A047", // green
         "16-29": "#E53935", // red
         "30-45": "#F4C20D", // yellow
         "46+": "#1E88E5",   // blue

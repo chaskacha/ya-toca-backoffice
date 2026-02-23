@@ -62,6 +62,7 @@ const QuestionBox: React.FC<QuestionBoxProps> = ({
             className="q-dropdown"
           >
             <option value="" disabled hidden>EDAD</option>
+            <option value="15-">15-</option>
             <option value="16-29">16-29</option>
             <option value="30-45">30-45</option>
             <option value="46+">46 a más</option>

@@ -5,9 +5,9 @@ export const separate_number_commas = (num: number): string => {
     return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
-export const get_substring = (str: string, limit: number = 20): string => {
+export const get_substring = (str: string, limit: number = 20, suffix: string = "..."): string => {
     if (str.length > limit) {
-        return str.substring(0, limit) + "...";
+        return str.substring(0, limit) + suffix;
     }
     return str;
 }

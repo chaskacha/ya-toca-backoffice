@@ -2,7 +2,7 @@
 import { query } from "@/lib/db";
 
 const ADMIN_PHONE = "51991515939";
-const STATIONS = [14, 11, 12, 15];
+const STATIONS = [14, 11, 12, 15, 13];
 
 export const GET = async (request: Request) => {
   try {
@@ -32,7 +32,7 @@ export const GET = async (request: Request) => {
     p.id AS participant_id,
     p.id_cabildo,
     p.fechacreacion AS fecha,
-    cbl.nombre_de_cabildo AS cabildo,
+    cbl.name AS cabildo,
     reg.nombreregion AS region_cabildo,
     p.region AS region_procedencia,
     p.telefono,
@@ -107,12 +107,18 @@ pivoted AS (
 
     COALESCE(
       string_agg(com.comentario, E'\n\n' ORDER BY com.comentario_id)
+      FILTER (WHERE com.idestacion = 13),
+      ''
+    ) AS e4_estacion4,
+
+    COALESCE(
+      string_agg(com.comentario, E'\n\n' ORDER BY com.comentario_id)
       FILTER (WHERE com.idestacion = 15),
       ''
     ) AS cierre
 
   FROM filtered_participants fp
-  LEFT JOIN comments_by_station com ON com.participant_id = fp.participant_id
+  JOIN comments_by_station com ON com.participant_id = fp.participant_id
   GROUP BY
     fp.fecha, fp.participant_id, fp.cabildo, fp.region_cabildo, fp.region_procedencia,
     fp.telefono, fp.genero, fp.age_group, fp.nivelinstruccion, fp.grupoetnico

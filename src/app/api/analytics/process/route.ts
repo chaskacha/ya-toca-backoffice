@@ -83,6 +83,7 @@ async function fetchNewFromTComentarios(limit = 2500) {
     CASE
       WHEN p.edad ~ '^\d+$' THEN
         CASE
+          WHEN (p.edad)::int BETWEEN 15 AND 15 THEN '15-'
           WHEN (p.edad)::int BETWEEN 16 AND 29 THEN '16-29'
           WHEN (p.edad)::int BETWEEN 30 AND 45 THEN '30-45'
           WHEN (p.edad)::int >= 46 THEN '46+'

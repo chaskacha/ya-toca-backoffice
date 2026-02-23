@@ -54,6 +54,7 @@ const Dashboard: React.FC = () => {
         { type: 'Otro', number: 1000, color: '#0059A6' },
     ]
     const ages = [
+        { type: '15-', number: 1000, color: '#43A047' },
         { type: '16-29', number: 2564, color: '#E53016' },
         { type: '30-45', number: 3200, color: '#EABF00' },
         { type: '46+', number: 4239, color: '#0059A6' },

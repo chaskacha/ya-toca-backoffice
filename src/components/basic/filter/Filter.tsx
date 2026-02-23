@@ -9,11 +9,13 @@ export default function Filter({
     value,
     onChange,
     options,
+    disabled
 }: {
     label: string;
     value: string;
     onChange: (v: string) => void;
     options: Option[];
+    disabled?: boolean;
 }) {
     return (
         <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -29,8 +31,10 @@ export default function Filter({
                     borderRadius: 10,
                     border: "1px solid #ddd",
                     padding: "0 10px",
-                    background: "#fff",
+                    background: disabled ? "#949494" : "#fff",
+                    cursor: disabled ? "not-allowed" : "pointer",
                 }}
+                disabled={disabled}
             >
                 {options.map((opt) => {
                     if (typeof opt === "string") {

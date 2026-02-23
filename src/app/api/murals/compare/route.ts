@@ -76,17 +76,17 @@ export const GET = async (req: Request) => {
         ph.id AS idphrase,
         COALESCE(NULLIF(btrim(ph.clean_text), ''), btrim(ph.raw_text)) AS phrase,
         NULLIF(btrim(ph.question), '') AS question,
-        e.id AS event_id,
-        e.name_event,
-        e.date_event::text AS event_date
+        a.id AS event_id,
+        a.name_event,
+        a.date_event::text AS event_date
       FROM mural_phrases ph
-      JOIN mural_events e ON e.id = ph.event_id
+      JOIN activities a ON a.id = ph.event_id
       WHERE ph.raw_text IS NOT NULL
     `;
 
         const [resA, resB] = await Promise.all([
-            query(`${baseSql} AND e.id = ANY($1::int[]) LIMIT 2000`, [aEventIds]),
-            query(`${baseSql} AND e.id = ANY($1::int[]) LIMIT 2000`, [bEventIds]),
+            query(`${baseSql} AND a.id = ANY($1::int[]) LIMIT 2000`, [aEventIds]),
+            query(`${baseSql} AND a.id = ANY($1::int[]) LIMIT 2000`, [bEventIds]),
         ]);
 
         const rowsA = (resA.rows ?? []) as RowPhrase[];

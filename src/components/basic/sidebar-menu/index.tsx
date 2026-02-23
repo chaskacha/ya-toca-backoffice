@@ -23,7 +23,7 @@ const SidebarMenu: React.FC = () => {
 
     const menuItems = [
         { href: '/cabildos', name: 'Cabildos' },
-        { href: '/activaciones', name: 'Activaciones' },
+        { href: '/murals', name: 'Murales' },
         { href: '/darkroom', name: 'Dark Room' },
         { href: '/radio', name: 'Radio' },
         { href: '/videos', name: 'Videos' },

@@ -2,12 +2,10 @@
 import { query } from "@/lib/db";
 import {
     openai_completions,
-    EMBEDDING_MODEL,
-    EMBEDDING_PIPELINE_VERSION,
 } from "@/constants/openai";
 
 const ADMIN_PHONE = "51991515939";
-const DEFAULT_STATIONS = [11, 12, 13, 14];
+const DEFAULT_STATIONS = [11, 12, 13, 14, 15];
 const NO_DEDUP_CABILDO_IDS = [50, 51, 52, 53, 54];
 
 type Row = {
@@ -140,6 +138,8 @@ const STATION_QUESTION: Record<number, string> = {
     14: `¿Qué te choca o te frustra de vivir en este país? ¿Y qué te da esperanza o te hace sentir que sí se puede?`,
     11: `¿Crees que el lugar y las condiciones en las que nacimos marcan lo que podemos lograr? ¿Cómo podemos convivir y construir con gente que piensa distinto?`,
     12: `Si fueras presidente, ¿qué harías para no decepcionar a tu generación? ¿Cuáles serían tus prioridades?`,
+    13: '¿Cómo podemos convivir y construir con gente que piensa distinto?',
+    15: '¿Qué ya nos toca hacer?'
 };
 
 export const GET = async (req: Request) => {
@@ -268,10 +268,8 @@ export const GET = async (req: Request) => {
       SELECT idcomentario, embedding
       FROM comentario_embeddings
       WHERE idcomentario = ANY($1::int[])
-        AND pipeline_version = $2
-        AND model = $3
       `,
-            [allIds, EMBEDDING_PIPELINE_VERSION, EMBEDDING_MODEL]
+            [allIds]
         );
 
         const embMap = new Map<number, number[]>();

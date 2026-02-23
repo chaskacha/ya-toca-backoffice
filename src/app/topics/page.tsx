@@ -34,12 +34,13 @@ const Topics: React.FC = () => {
         { type: 'Otro', number: 1000, color: '#0059A6' },
     ]
     const ages = [
+        { type: '15-', number: 1000, color: '#43A047' },
         { type: '16-29', number: 2564, color: '#E53016' },
         { type: '30-45', number: 3200, color: '#EABF00' },
         { type: '46+', number: 4239, color: '#0059A6' },
     ]
     const filters = {
-        age: ['16-29', '30-45', '46+'],
+        age: ['15-', '16-29', '30-45', '46+'],
         gender: ['Hombre', 'Mujer', 'Otro'],
         region: ['Lima', 'Cusco', 'Arequipa', 'Callao', 'Piura', 'Cajamarca', 'Amazonas', 'Áncash', 'La Libertad'],
         medio: ['Redes sociales', 'Web', 'Whatsapp', 'Activaciones', 'Festivales', 'Cabildos'],

@@ -68,7 +68,7 @@ export default function RadioEpisodesTable({
     const [total, setTotal] = React.useState(0);
 
     const [page, setPage] = React.useState(1);
-    const pageSize = 20;
+    const pageSize = 100;
 
     const [compareOpen, setCompareOpen] = React.useState(false);
 
@@ -114,7 +114,26 @@ export default function RadioEpisodesTable({
             <div className="fs18 fw700">Episodios</div>
             <div style={{ height: 10 }} />
 
-            {/* ✅ Filters removed from here */}
+            <button
+                onClick={() => {
+                    const params = new URLSearchParams();
+
+                    if (filters.programId) params.set("programId", filters.programId);
+                    if (filters.topicId) params.set("topicId", filters.topicId);
+
+                    router.push(`/radio/analyze?${params.toString()}`);
+                }}
+                style={{
+                    height: 40,
+                    padding: "0 12px",
+                    borderRadius: 8,
+                    background: "linear-gradient(90deg, hsla(346, 100%, 83%, 1) 0%, hsla(238, 70%, 48%, 1) 100%)",
+                    filter: "progid: DXImageTransform.Microsoft.gradient( startColorstr=\"#FFA8BD\", endColorstr=\"#242ACF\", GradientType=1 )",
+                    color: "#fff",
+                }}
+            >
+                Analizar
+            </button>
 
             <div style={{ height: 14 }} />
 
@@ -129,10 +148,10 @@ export default function RadioEpisodesTable({
                     <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1100 }}>
                         <thead>
                             <tr style={{ textAlign: "left", borderBottom: "1px solid #eee" }}>
-                                <th style={{ padding: 12 }}>Fecha</th>
+                                {/* <th style={{ padding: 12 }}>Fecha</th> */}
                                 <th style={{ padding: 12 }}>Radio</th>
-                                <th style={{ padding: 12 }}>Pregunta estímulo</th>
-                                <th style={{ padding: 12 }}>Respuestas</th>
+                                {/* <th style={{ padding: 12 }}>Pregunta estímulo</th> */}
+                                <th style={{ padding: 12 }}>Respuesta</th>
                             </tr>
                         </thead>
 
@@ -145,21 +164,39 @@ export default function RadioEpisodesTable({
                                 return (
                                     <React.Fragment key={r.id}>
                                         <tr style={{ borderBottom: "1px solid #f0f0f0", verticalAlign: "top" }}>
-                                            <td style={{ padding: 12, whiteSpace: "nowrap" }}>
+                                            {/* <td style={{ padding: 12, whiteSpace: "nowrap" }}>
                                                 {(r.aired_at || r.created_at || "").slice(0, 10)}
-                                            </td>
+                                            </td> */}
 
                                             <td style={{ padding: 12, whiteSpace: "nowrap", fontWeight: 800 }}>
                                                 {r.name_program}
                                             </td>
 
-                                            <td style={{ padding: 12, whiteSpace: "wrap", maxWidth: 280, minWidth: 280 }}>
+                                            {/* <td style={{ padding: 12, whiteSpace: "wrap", maxWidth: 280, minWidth: 280 }}>
                                                 {r.title}
+                                            </td> */}
+
+                                            <td style={{ padding: 12 }}>
+                                                <div style={{ whiteSpace: "normal", wordBreak: "break-word", overflowWrap: "anywhere" }}>
+                                                    {r.transcript_text ? r.transcript_text : "No transcript"}
+                                                </div>
+
+                                                <div
+                                                    style={{
+                                                        marginTop: 4,
+                                                        fontSize: 12,
+                                                        opacity: 0.7,
+                                                        lineHeight: 1.25,
+                                                        whiteSpace: "normal",
+                                                        wordBreak: "break-word",
+                                                        overflowWrap: "anywhere",
+                                                        maxWidth: 500
+                                                    }}
+                                                >
+                                                    {r.title}
+                                                </div>
                                             </td>
 
-                                            <td style={{ padding: 12, whiteSpace: "wrap", maxWidth: 340, minWidth: 340 }}>
-                                                {r.transcript_text ? r.transcript_text : "No transcript"}
-                                            </td>
                                         </tr>
                                     </React.Fragment>
                                 );

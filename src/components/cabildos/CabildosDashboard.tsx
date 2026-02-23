@@ -10,12 +10,10 @@ import {
     LinearScale,
     BarElement,
 } from "chart.js";
-import { Doughnut, Bar } from "react-chartjs-2";
+import { Doughnut } from "react-chartjs-2";
 import "./styles.css";
 import { colorsFromMap } from "@/utils/chartHelper";
 import { CHART_COLORS } from "@/constants/chartColors";
-import Filter from "../basic/filter/Filter";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { buildPercentRows } from "@/constants/functions";
 import Card from "../commons/common/Card";
 
@@ -36,11 +34,6 @@ type ApiResponse = {
     };
 };
 
-type CabildoItem = {
-    id: number;
-    nombre_de_cabildo: string;
-};
-
 function toChartData(obj: Breakdown) {
     const labels = Object.keys(obj);
     const values = Object.values(obj);
@@ -58,25 +51,6 @@ export default function CabildosDashboard({ filters }: { filters: {
 }}) {
     const [data, setData] = React.useState<ApiResponse | null>(null);
     const [loading, setLoading] = React.useState(true);
-
-    const [cabildosList, setCabildosList] = React.useState<CabildoItem[]>([]);
-
-    const isTabletOrLess = useMediaQuery("(max-width: 1024px)");
-
-    // Load cabildos list once
-    React.useEffect(() => {
-        const loadCabildos = async () => {
-            try {
-                const res = await fetch("/api/cabildos/list");
-                const json = await res.json();
-                setCabildosList(json?.cabildos ?? []);
-            } catch (e) {
-                console.error("Failed to load cabildos list", e);
-                setCabildosList([]);
-            }
-        };
-        loadCabildos();
-    }, []);
 
     const buildUrl = React.useCallback(() => {
         const params = new URLSearchParams();
@@ -111,57 +85,9 @@ export default function CabildosDashboard({ filters }: { filters: {
     const gender = React.useMemo(() => (data ? toChartData(data.breakdown.gender) : null), [data]);
     const regions = React.useMemo(() => (data ? toChartData(data.breakdown.regions) : null), [data]);
 
-    // Region options: only regions with at least 1 record
-    const regionOptions = React.useMemo(() => {
-        const apiRegions = data?.filters?.regions?.filter(Boolean) ?? [];
-        const chartRegions = Object.keys(data?.breakdown?.regions ?? {}).filter(
-            (r) => r && r.trim() !== "" && r !== "Otros" && r !== "No especifica"
-        );
-        const unique = Array.from(new Set([...apiRegions, ...chartRegions]));
-        unique.sort((a, b) => a.localeCompare(b, "es"));
-        return [{ label: "Todos", value: "" }, ...unique.map((r) => ({ label: r, value: r }))];
-    }, [data]);
-
-    const ageOptions = React.useMemo(
-        () => [
-            { label: "Todos", value: "" },
-            { label: "16-29", value: "16-29" },
-            { label: "30-45", value: "30-45" },
-            { label: "46+", value: "46+" },
-        ],
-        []
-    );
-
-    const genderOptions = React.useMemo(
-        () => [
-            { label: "Todos", value: "" },
-            { label: "Femenino", value: "Femenino" },
-            { label: "Masculino", value: "Masculino" },
-            { label: "Prefiero no indicar", value: "Prefiero no indicar" },
-        ],
-        []
-    );
-
-    const cabildoOptions = React.useMemo(
-        () => [
-            { label: "Todos", value: "" },
-            ...cabildosList.map((c) => ({ label: c.nombre_de_cabildo, value: String(c.id) })),
-        ],
-        [cabildosList]
-    );
-
     // stable cabildo colors (based on labels order)
     const cabildoLabels = React.useMemo(() => Object.keys(data?.breakdown?.cabildos ?? {}), [data]);
     const cabildoValues = React.useMemo(() => Object.values(data?.breakdown?.cabildos ?? {}), [data]);
-    const cabildoColors = React.useMemo(
-        () => cabildoLabels.map((_, i) => CHART_COLORS.cabildos[i % CHART_COLORS.cabildos.length]),
-        [cabildoLabels]
-    );
-
-    const cabildosDynamicHeight = React.useMemo(() => {
-        if (!isTabletOrLess) return 420;
-        return Math.max(360, cabildoLabels.length * 34);
-    }, [isTabletOrLess, cabildoLabels.length]);
 
     if (loading) return <div className="dash-loading">Cargando dashboard...</div>;
     if (!data) return <div className="dash-loading">No se pudo cargar la data.</div>;

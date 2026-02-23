@@ -4,8 +4,6 @@ import React from "react";
 import CompareModal, { CompareModalValue } from "@/components/cabildos/CompareModal";
 import { useRouter } from "next/navigation";
 
-type Option = { label: string; value: string };
-
 type FiltersApi = {
   regions: string[];
   genders: string[];
@@ -31,6 +29,7 @@ type Row = {
   e1_catarsis: string;
   e2_circunstancias: string;
   e3_yo_presidente: string;
+  e4_estacion4: string;
   cierre: string;
 };
 
@@ -44,7 +43,7 @@ export default function CabildosStationsTable({
     gender: string;
     nivelinstruccion: string;
     grupoetnico: string;
-    stationId: string; // sigue existiendo, por si quieres filtrar E1/E2/E3/Cierre
+    stationId: string;
   };
 }) {
   const [filtersApi, setFiltersApi] = React.useState<FiltersApi | null>(null);
@@ -58,9 +57,8 @@ export default function CabildosStationsTable({
   const [rows, setRows] = React.useState<Row[]>([]);
   const [total, setTotal] = React.useState(0);
   const [page, setPage] = React.useState(1);
-  const pageSize = 20;
+  const pageSize = 100;
 
-  // Load filter options once
   React.useEffect(() => {
     const run = async () => {
       try {
@@ -92,7 +90,6 @@ export default function CabildosStationsTable({
     return `/api/cabildos/stations/comments?${params.toString()}`;
   }, [filters, page]);
 
-  // Reset to page 1 when filters change
   React.useEffect(() => {
     setPage(1);
   }, [
@@ -105,7 +102,6 @@ export default function CabildosStationsTable({
     filters.stationId,
   ]);
 
-  // Load rows when filters/page change
   React.useEffect(() => {
     const run = async () => {
       try {
@@ -125,44 +121,8 @@ export default function CabildosStationsTable({
     run();
   }, [buildUrl]);
 
-  const cabildoOptions: Option[] = React.useMemo(() => {
-    const list = filtersApi?.cabildos ?? [];
-    return [{ label: "Todos", value: "" }, ...list.map((c) => ({ label: c.nombre, value: String(c.id) }))];
-  }, [filtersApi]);
-
-  const stationOptions: Option[] = React.useMemo(() => {
-    const list = filtersApi?.estaciones ?? [];
-    return [{ label: "Todas", value: "" }, ...list.map((s) => ({ label: s.nombre, value: String(s.id) }))];
-  }, [filtersApi]);
-
-  const regionOptions: Option[] = React.useMemo(() => {
-    const list = filtersApi?.regions ?? [];
-    return [{ label: "Todas", value: "" }, ...list.map((r) => ({ label: r, value: r }))];
-  }, [filtersApi]);
-
-  const ageOptions: Option[] = React.useMemo(() => {
-    const list = filtersApi?.ageGroups ?? ["16-29", "30-45", "46+", "No especifica"];
-    return [{ label: "Todas", value: "" }, ...list.map((a) => ({ label: a, value: a }))];
-  }, [filtersApi]);
-
-  const genderOptions: Option[] = React.useMemo(() => {
-    const list = filtersApi?.genders ?? ["Femenino", "Masculino", "Prefiero no indicar", "No especifica"];
-    return [{ label: "Todos", value: "" }, ...list.map((g) => ({ label: g, value: g }))];
-  }, [filtersApi]);
-
-  const nivelOptions: Option[] = React.useMemo(() => {
-    const list = filtersApi?.nivelesInstruccion ?? [];
-    return [{ label: "Todos", value: "" }, ...list.map((n) => ({ label: n, value: n }))];
-  }, [filtersApi]);
-
-  const etnicoOptions: Option[] = React.useMemo(() => {
-    const list = filtersApi?.gruposEtnicos ?? [];
-    return [{ label: "Todos", value: "" }, ...list.map((e) => ({ label: e, value: e }))];
-  }, [filtersApi]);
-
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-  // Helper: multiline cell
   const Cell = ({ text }: { text?: string }) => (
     <div
       style={{
@@ -176,13 +136,22 @@ export default function CabildosStationsTable({
     </div>
   );
 
+  const stickyTh: React.CSSProperties = {
+    position: "sticky",
+    top: 0,
+    background: "#fff",
+    zIndex: 2,
+    padding: 12,
+    borderBottom: "1px solid #ddd",
+  };
+
   return (
     <div style={{ marginTop: 28 }}>
       <div className="fs18 fw700">Comentarios por Participante</div>
       <div style={{ height: 10 }} />
 
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-end" }}>
-        <button
+        {/* <button
           onClick={() => setCompareOpen(true)}
           style={{
             height: 40,
@@ -194,7 +163,7 @@ export default function CabildosStationsTable({
           }}
         >
           Comparar
-        </button>
+        </button> */}
 
         <button
           onClick={() => {
@@ -219,7 +188,7 @@ export default function CabildosStationsTable({
             color: "#fff",
           }}
         >
-          Analyze
+          Analizar
         </button>
       </div>
 
@@ -233,7 +202,8 @@ export default function CabildosStationsTable({
         <div
           style={{
             width: "calc(100vw - 56px - 134px)",
-            overflowX: "auto",
+            maxHeight: "70vh",
+            overflow: "auto",
             border: "1px solid #000",
             borderRadius: 12,
             background: "#fff",
@@ -243,30 +213,28 @@ export default function CabildosStationsTable({
 
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1600 }}>
             <thead>
-              <tr style={{ textAlign: "left", borderBottom: "1px solid #eee" }}>
-                <th style={{ padding: 12 }}>Fecha</th>
-                <th style={{ padding: 12 }}>Cabildo</th>
-                <th style={{ padding: 12 }}>Región procedencia</th>
-                <th style={{ padding: 12 }}>ID de participante</th>
-                <th style={{ padding: 12 }}>Género</th>
-                <th style={{ padding: 12 }}>Edad</th>
-                <th style={{ padding: 12 }}>Nivel</th>
-                <th style={{ padding: 12 }}>Grupo étnico</th>
+              <tr style={{ textAlign: "left" }}>
+                <th style={stickyTh}>Cabildo</th>
+                <th style={stickyTh}>Región procedencia</th>
+                <th style={stickyTh}>Género</th>
+                <th style={stickyTh}>Edad</th>
+                <th style={stickyTh}>Nivel</th>
+                <th style={stickyTh}>Grupo étnico</th>
 
-                <th style={{ padding: 12, minWidth: 360 }}>E1 CATARSIS</th>
-                <th style={{ padding: 12, minWidth: 360 }}>E2 CIRCUNSTANCIAS Y DIFERENCIAS</th>
-                <th style={{ padding: 12, minWidth: 360 }}>E3 YO PRESIDENTE</th>
-                <th style={{ padding: 12, minWidth: 360 }}>CIERRE</th>
+                <th style={{ ...stickyTh, minWidth: 360 }}>E1 CATARSIS</th>
+                <th style={{ ...stickyTh, minWidth: 360 }}>E2 CIRCUNSTANCIAS Y DIFERENCIAS</th>
+                <th style={{ ...stickyTh, minWidth: 360 }}>E3 YO PRESIDENTE</th>
+                <th style={{ ...stickyTh, minWidth: 360 }}>E4 ESTACIÓN 4</th>
+                <th style={{ ...stickyTh, minWidth: 360 }}>CIERRE</th>
               </tr>
             </thead>
 
             <tbody>
               {rows.map((r, idx) => (
                 <tr key={idx} style={{ borderBottom: "1px solid #000" }}>
-                  <td style={{ padding: 12, whiteSpace: "nowrap" }}>{String(r.fecha).slice(0, 10)}</td>
+                  {/* <td style={{ padding: 12, whiteSpace: "nowrap" }}>{String(r.fecha).slice(0, 10)}</td> */}
                   <td style={{ padding: 12 }}>{r.cabildo || "-"}</td>
                   <td style={{ padding: 12 }}>{r.region_procedencia || "-"}</td>
-                  <td style={{ padding: 12 }}>{r.participant_id}</td>
                   <td style={{ padding: 12 }}>
                     {r.genero === "Masculino" ? "M" : r.genero === "Femenino" ? "F" : "-"}
                   </td>
@@ -282,6 +250,9 @@ export default function CabildosStationsTable({
                   </td>
                   <td style={{ padding: 12, verticalAlign: "top" }}>
                     <Cell text={r.e3_yo_presidente} />
+                  </td>
+                  <td style={{ padding: 12, verticalAlign: "top" }}>
+                    <Cell text={r.e4_estacion4} />
                   </td>
                   <td style={{ padding: 12, verticalAlign: "top" }}>
                     <Cell text={r.cierre} />

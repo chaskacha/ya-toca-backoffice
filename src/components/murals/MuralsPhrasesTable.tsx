@@ -1,31 +1,34 @@
+// components/murals/MuralsPhrasesTable.tsx
 'use client';
 
 import React from "react";
-import Filter from "../basic/filter/Filter";
 import { useRouter } from "next/navigation";
 import CompareModal from "./CompareModal";
-
-type Option = { label: string; value: string };
-
-type FiltersApi = {
-    regions: { id: number; nombreregion: string }[];
-    events: { id: number; name_event: string; date_event: string; region_name?: string | null }[];
-};
+import { get_substring } from "@/constants/functions";
 
 type Row = {
     created_at: string;
-    event_id: number;
-    region_name: string;
-    name_event: string;
+
+    event_id: number | null;
+    event_name: string | null;
+
+    id_region: number | null;
+    region_name: string | null;
+
+    activity_id: number;
+    name_event: string | null;
+    date_event: string | null;
+
     phrase: string;
     question: string | null;
     photo_url?: string | null;
 };
 
-export default function MuralsPhrasesTable({ filters }: { filters: { regionId: string; eventId: string } }) {
-    const [filtersApi, setFiltersApi] = React.useState<FiltersApi | null>(null);
-    const [loadingFilters, setLoadingFilters] = React.useState(true);
-
+export default function MuralsPhrasesTable({
+    filters,
+}: {
+    filters: { regionId: string; eventId: string; activityId: string };
+}) {
     const router = useRouter();
     const [compareOpen, setCompareOpen] = React.useState(false);
 
@@ -33,41 +36,22 @@ export default function MuralsPhrasesTable({ filters }: { filters: { regionId: s
     const [rows, setRows] = React.useState<Row[]>([]);
     const [total, setTotal] = React.useState(0);
     const [page, setPage] = React.useState(1);
-    const pageSize = 20;
-
-    // Load filters once
-    React.useEffect(() => {
-        const run = async () => {
-            try {
-                setLoadingFilters(true);
-                const res = await fetch("/api/murals/phrases/filters");
-                const json = (await res.json()) as FiltersApi;
-                setFiltersApi(json);
-            } catch (e) {
-                console.error(e);
-                setFiltersApi(null);
-            } finally {
-                setLoadingFilters(false);
-            }
-        };
-        run();
-    }, []);
+    const pageSize = 100;
 
     const buildUrl = React.useCallback(() => {
         const params = new URLSearchParams();
         if (filters.regionId) params.set("regionId", filters.regionId);
         if (filters.eventId) params.set("eventId", filters.eventId);
+        if (filters.activityId) params.set("activityId", filters.activityId);
         params.set("page", String(page));
         params.set("pageSize", String(pageSize));
         return `/api/murals/phrases/list?${params.toString()}`;
-    }, [filters.regionId, filters.eventId, page]);
+    }, [filters.regionId, filters.eventId, filters.activityId, page]);
 
-    // Reset to page 1 when filters change
     React.useEffect(() => {
         setPage(1);
-    }, [filters.regionId, filters.eventId]);
+    }, [filters.regionId, filters.eventId, filters.activityId]);
 
-    // Load rows
     React.useEffect(() => {
         const run = async () => {
             try {
@@ -89,51 +73,31 @@ export default function MuralsPhrasesTable({ filters }: { filters: { regionId: s
 
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-    // ✅ IMPORTANT: CompareModal currently supports cabildos/stations/etc.
-    // For murals, we will ONLY use "region" and "cabildoId" mapped to eventId for now.
-    // We'll pass a fake filtersApi adapter so you can reuse CompareModal without rewriting it today.
-    const compareFiltersAdapter = React.useMemo(() => {
-        if (!filtersApi) return null;
-        return {
-            regions: (filtersApi.regions ?? []).map((r) => r.nombreregion),
-            genders: [],
-            ageGroups: [],
-            nivelesInstruccion: [],
-            gruposEtnicos: [],
-            estaciones: [],
-            events: (filtersApi.events ?? []).map((e) => ({
-                id: e.id,
-                nombre: e.name_event,
-            })),
-        };
-    }, [filtersApi]);
-
     return (
         <div style={{ marginTop: 28 }}>
             <div className="fs18 fw700">Frases extraídas</div>
             <div style={{ height: 10 }} />
 
-            {loadingFilters ? <div className="dash-loading">Cargando filtros...</div> : null}
-
             {loading ? (
                 <div className="dash-loading">Cargando frases...</div>
             ) : (
-                <div style={{
-                    width: "calc(100vw - 56px - 134px)",
-                    overflowX: "auto",
-                    border: "1px solid #000",
-                    borderRadius: 12,
-                    background: "#fff"
-                }}>
+                <div
+                    style={{
+                        width: "calc(100vw - 56px - 134px)",
+                        overflowX: "auto",
+                        border: "1px solid #000",
+                        borderRadius: 12,
+                        background: "#fff",
+                    }}
+                >
                     <div style={{ color: "#666", padding: 12 }}>{total.toLocaleString()} resultados</div>
 
                     <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 900 }}>
                         <thead>
                             <tr style={{ textAlign: "left", borderBottom: "1px solid #eee" }}>
-                                <th style={{ padding: 12 }}>Fecha</th>
+                                {/* <th style={{ padding: 12 }}>Fecha</th> */}
                                 <th style={{ padding: 12 }}>Región</th>
-                                <th style={{ padding: 12 }}>Evento</th>
-                                <th style={{ padding: 12 }}>Pregunta</th>
+                                <th style={{ padding: 12 }}>Actividad</th>
                                 <th style={{ padding: 12 }}>Frase</th>
                             </tr>
                         </thead>
@@ -141,10 +105,24 @@ export default function MuralsPhrasesTable({ filters }: { filters: { regionId: s
                         <tbody>
                             {rows.map((r, idx) => (
                                 <tr key={idx} style={{ borderBottom: "1px solid #000" }}>
-                                    <td style={{ padding: 12, whiteSpace: "nowrap" }}>{String(r.created_at).slice(0, 10)}</td>
-                                    <td style={{ padding: 12, whiteSpace: "nowrap" }}>{r.region_name}</td>
-                                    <td style={{ padding: 12, whiteSpace: "nowrap" }}>{r.name_event}</td>
-                                    <td style={{ padding: 12, whiteSpace: "nowrap" }}>{r.question || "Sin pregunta"}</td>
+                                    {/* <td style={{ padding: 12, whiteSpace: "nowrap" }}>
+                                        {String(r.created_at).slice(0, 10)}
+                                    </td> */}
+
+                                    <td style={{ padding: 12, whiteSpace: "nowrap" }}>
+                                        {get_substring(r.region_name?.toUpperCase() || "", 3, "") || "Sin región"}
+                                    </td>
+
+                                    <td style={{ padding: 12, whiteSpace: "nowrap" }}>
+                                        <div style={{ fontWeight: 600 }}>
+                                            {(r.name_event?.split(" - ")[0] ?? "Sin actividad")}
+                                        </div>
+
+                                        <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>
+                                            {r.event_name || "Sin evento"}
+                                        </div>
+                                    </td>
+
                                     <td style={{ padding: 12, minWidth: 520, maxWidth: 720 }}>
                                         <div
                                             style={{
@@ -156,13 +134,17 @@ export default function MuralsPhrasesTable({ filters }: { filters: { regionId: s
                                         >
                                             {r.phrase}
                                         </div>
+
+                                        <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>
+                                            {r.question || "Sin pregunta"}
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
 
                             {rows.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} style={{ padding: 16, color: "#777" }}>
+                                    <td colSpan={4} style={{ padding: 16, color: "#777" }}>
                                         No hay resultados con los filtros seleccionados.
                                     </td>
                                 </tr>
@@ -199,12 +181,12 @@ export default function MuralsPhrasesTable({ filters }: { filters: { regionId: s
             <CompareModal
                 open={compareOpen}
                 onClose={() => setCompareOpen(false)}
-                filtersApi={compareFiltersAdapter as any}
+                filtersApi={null}
                 onApply={(val) => {
                     setCompareOpen(false);
 
                     const params = new URLSearchParams();
-                    params.set("dimension", "eventId"); // fixed
+                    params.set("dimension", "eventId"); // unchanged for now
 
                     val.aValues.forEach((x) => params.append("a", x));
                     val.bValues.forEach((x) => params.append("b", x));

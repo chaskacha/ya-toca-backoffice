@@ -14,7 +14,7 @@ type Props = {
 
 const SummaryChat: React.FC<Props> = ({ handle_compare, selection1, selection2, handle_reset }) => {
     const filters = {
-        age: ['16-29', '30-45', '46+'],
+        age: ['15-', '16-29', '30-45', '46+'],
         gender: ['Hombre', 'Mujer', 'Otro'],
         region: ['Lima', 'Cusco', 'Arequipa', 'Callao', 'Piura', 'Cajamarca', 'Amazonas', 'Áncash', 'La Libertad'],
         medio: ['Redes sociales', 'Web', 'Whatsapp', 'Activaciones', 'Festivales', 'Cabildos'],
