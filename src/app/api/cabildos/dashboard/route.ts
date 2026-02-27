@@ -45,11 +45,11 @@ export const GET = async (request: Request) => {
       UNION ALL
 
       -- B) rest: dedup by telefono → keep OLDEST by fechacreacion
-      SELECT DISTINCT ON (telefono)
+      SELECT DISTINCT ON (id_cabildo, telefono)
         *
       FROM raw
       WHERE id_cabildo <> ALL($6::int[])
-      ORDER BY telefono, fechacreacion ASC, id ASC
+      ORDER BY id_cabildo, telefono, fechacreacion ASC, id ASC
     ),
 
       base AS (

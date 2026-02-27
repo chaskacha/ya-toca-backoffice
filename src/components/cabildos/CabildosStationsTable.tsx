@@ -51,7 +51,6 @@ export default function CabildosStationsTable({
   const router = useRouter();
 
   const [compareOpen, setCompareOpen] = React.useState(false);
-  const [analyzeOpen, setAnalyzeOpen] = React.useState(false);
 
   const [loading, setLoading] = React.useState(true);
   const [rows, setRows] = React.useState<Row[]>([]);
@@ -151,7 +150,7 @@ export default function CabildosStationsTable({
       <div style={{ height: 10 }} />
 
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-end" }}>
-        {/* <button
+        <button
           onClick={() => setCompareOpen(true)}
           style={{
             height: 40,
@@ -163,7 +162,7 @@ export default function CabildosStationsTable({
           }}
         >
           Comparar
-        </button> */}
+        </button>
 
         <button
           onClick={() => {

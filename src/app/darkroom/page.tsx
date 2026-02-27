@@ -109,12 +109,12 @@ export default function DarkRoom() {
                                 options={questionOptions}
                             />
 
-                            <Filter
+                            {/* <Filter
                                 label="Opción"
                                 value={filters.optionId}
                                 onChange={(v) => setFilters((p) => ({ ...p, optionId: v }))}
                                 options={optionOptions}
-                            />
+                            /> */}
 
                             <Filter
                                 label="Edad"
@@ -160,8 +160,8 @@ export default function DarkRoom() {
                         <br />
 
                         <DarkRoomDashboard filters={filters} loadingFilters={loadingFilters} />
-                        <br />
-                        <DarkRoomResponsesTable filters={filters} loadingFilters={loadingFilters} />
+                        {/* <br />
+                        <DarkRoomResponsesTable filters={filters} loadingFilters={loadingFilters} /> */}
                     </>
                 </SafeArea>
             </div>

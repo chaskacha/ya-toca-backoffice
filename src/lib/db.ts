@@ -55,17 +55,27 @@ export async function query(text: string, params: any[] = []) {
   }
 }
 
-export const withTransaction = async <T>(fn: (client: PoolClient) => Promise<T>): Promise<T> => {
-  const client = await pool.connect();
+export async function withClient<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
+  const clientPool = await getPool();
+  const client = await clientPool.connect();
   try {
-    await client.query('BEGIN');
-    const result = await fn(client);
-    await client.query('COMMIT');
-    return result;
-  } catch (error) {
-    await client.query('ROLLBACK');
-    throw error;
+    return await fn(client);
   } finally {
     client.release();
   }
-};
+}
+
+export async function withTransaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
+  return withClient(async (client) => {
+    await client.query("BEGIN");
+    try {
+      const result = await fn(client);
+      await client.query("COMMIT");
+      return result;
+    } catch (e) {
+      await client.query("ROLLBACK");
+      throw e;
+    }
+  });
+}
+

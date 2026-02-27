@@ -29,16 +29,14 @@ export const POST = async (req: Request) => {
       JOIN estaciones e ON e.id = c.idestacion
       LEFT JOIN comentario_embeddings ce
         ON ce.idcomentario = c.id
-       AND ce.pipeline_version = $1
-       AND ce.model = $2
-      WHERE e.id = ANY($3::int[])
+      WHERE e.id = ANY($1::int[])
         AND (ce.idcomentario IS NULL)
         AND c.texto IS NOT NULL
         AND btrim(c.texto) <> ''
       ORDER BY c.id ASC
-      LIMIT $4
+      LIMIT $2
       `,
-            [EMBEDDING_PIPELINE_VERSION, EMBEDDING_MODEL, STATIONS, limit]
+            [STATIONS, limit]
         );
 
         const missing = missingRes.rows as { id: number; texto: string }[];

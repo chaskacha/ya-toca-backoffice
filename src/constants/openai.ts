@@ -2,7 +2,7 @@ import OpenAI from "openai";
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY!,
 });
-export const EMBEDDING_MODEL = "text-embedding-3-small";
+export const EMBEDDING_MODEL = "text-embedding-3-large";
 export const EMBEDDING_PIPELINE_VERSION = "topics-v1.0.0";
 
 export const get_embeddings = async (text: string[]) => {
