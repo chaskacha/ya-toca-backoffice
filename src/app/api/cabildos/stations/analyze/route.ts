@@ -164,78 +164,120 @@ export const GET = async (req: Request) => {
             stationIdRaw && /^\d+$/.test(stationIdRaw) ? Number(stationIdRaw) : null;
 
         const baseSql = `
-      WITH
-      raw AS (
-        SELECT
-          p.id,
-          p.telefono,
-          p.id_cabildo,
-          p.region,
-          p.genero,
-          p.age_group,
-          p.nivelinstruccion,
-          p.grupoetnico,
-          p.fechacreacion
-        FROM participantes p
-        WHERE
-          p.id_cabildo IS NOT NULL
-          AND p.telefono IS NOT NULL
-          AND btrim(p.telefono) <> ''
-          AND p.telefono <> $1
-      ),
+  WITH
+  raw AS (
+    SELECT
+      p.id,
+      p.telefono,
+      p.id_cabildo,
+      p.region,
+      p.genero,
+      p.age_group,
+      p.nivelinstruccion,
+      p.grupoetnico,
+      p.fechacreacion
+    FROM participantes p
+    WHERE
+      p.id_cabildo IS NOT NULL
+      AND p.telefono IS NOT NULL
+      AND btrim(p.telefono) <> ''
+      AND p.telefono <> $1
+  ),
 
-      dedup AS (
-        -- A) cabildos sin deduplicación
-        SELECT *
-        FROM raw
-        WHERE id_cabildo = ANY($3::int[])
+  dedup AS (
+    -- A) cabildos sin deduplicación
+    SELECT *
+    FROM raw
+    WHERE id_cabildo = ANY($3::int[])
 
-        UNION ALL
+    UNION ALL
 
-        -- B) resto: dedup por teléfono conservando el más antiguo
-        SELECT DISTINCT ON (telefono)
-          *
-        FROM raw
-        WHERE id_cabildo <> ALL($3::int[])
-        ORDER BY telefono, fechacreacion ASC, id ASC
-      ),
+    -- B) resto: dedup por teléfono conservando el más antiguo
+    SELECT DISTINCT ON (telefono)
+      *
+    FROM raw
+    WHERE id_cabildo <> ALL($3::int[])
+    ORDER BY telefono, fechacreacion ASC, id ASC
+  ),
 
-      base AS (
-        SELECT d.*
-        FROM dedup d
-      ),
+  base AS (
+    SELECT d.*
+    FROM dedup d
+  ),
 
-      joined AS (
-        SELECT
-          b.*,
-          cp.idcomentario,
-          cm.texto AS comentario,
-          cm.idestacion,
-          e.nombreestacion AS estacion
-        FROM base b
-        JOIN comentariosparticipantes cp ON cp.idparticipante = b.id
-        JOIN comentarios cm ON cm.id = cp.idcomentario
-        JOIN estaciones e ON e.id = cm.idestacion
-        WHERE cm.idestacion = ANY($2::int[])
-          AND cm.texto IS NOT NULL
-          AND btrim(cm.texto) <> ''
+  joined_participants AS (
+    SELECT
+      cp.idcomentario,
+      cm.texto AS comentario,
+      cm.idestacion,
+      e.nombreestacion AS estacion,
+
+      b.region,
+      b.genero,
+      b.age_group,
+      b.nivelinstruccion,
+      b.grupoetnico,
+      b.id_cabildo
+
+    FROM base b
+    JOIN comentariosparticipantes cp ON cp.idparticipante = b.id
+    JOIN comentarios cm ON cm.id = cp.idcomentario
+    JOIN estaciones e ON e.id = cm.idestacion
+    WHERE
+      cm.idestacion = ANY($2::int[])
+      AND cm.texto IS NOT NULL
+      AND btrim(cm.texto) <> ''
+  ),
+
+  joined_anonymous AS (
+    SELECT
+      cm.id AS idcomentario,
+      cm.texto AS comentario,
+      cm.idestacion,
+      e.nombreestacion AS estacion,
+
+      NULL::text AS region,
+      NULL::text AS genero,
+      NULL::text AS age_group,
+      NULL::text AS nivelinstruccion,
+      NULL::text AS grupoetnico,
+      cm.idcabildo AS id_cabildo
+
+    FROM comentarios cm
+    JOIN estaciones e ON e.id = cm.idestacion
+    WHERE
+      cm.idcabildo IS NOT NULL
+      AND cm.idestacion = ANY($2::int[])
+      AND cm.texto IS NOT NULL
+      AND btrim(cm.texto) <> ''
+      AND NOT EXISTS (
+        SELECT 1
+        FROM comentariosparticipantes cp
+        WHERE cp.idcomentario = cm.id
       )
-    `;
+  ),
+
+  joined_all AS (
+    SELECT * FROM joined_participants
+    UNION ALL
+    SELECT * FROM joined_anonymous
+  )
+`;
 
         // where filters for single population
         const where = buildWhereClause(filters, 3);
 
         const sql = `
-      ${baseSql}
-      SELECT
-        idcomentario, comentario, idestacion, estacion,
-        region, genero, age_group, nivelinstruccion, grupoetnico, id_cabildo
-      FROM joined b
-      WHERE 1=1
-      ${where.sql}
-      AND ($${3 + where.params.length + 1}::int IS NULL OR b.idestacion = $${3 + where.params.length + 1}::int)
-      LIMIT 2400
-    `;
+  ${baseSql}
+  SELECT
+    idcomentario, comentario, idestacion, estacion,
+    region, genero, age_group, nivelinstruccion, grupoetnico, id_cabildo
+  FROM joined_all b
+  WHERE 1=1
+  ${where.sql}
+  AND ($${3 + where.params.length + 1}::int IS NULL OR b.idestacion = $${3 + where.params.length + 1}::int)
+  LIMIT 2400
+`;
 
         const params = [
             ADMIN_PHONE,

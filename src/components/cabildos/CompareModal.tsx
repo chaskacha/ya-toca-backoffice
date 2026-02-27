@@ -79,7 +79,9 @@ export default function CompareModal({
             case "grupoetnico":
                 return filtersApi.gruposEtnicos.map((x) => ({ label: x, value: x }));
             case "cabildoId":
-                return filtersApi.cabildos.map((c) => ({ label: c.nombre, value: String(c.id) }));
+                return filtersApi.cabildos
+                .filter((c) => c.id !== 50 && c.id !== 51 && c.id !== 52)
+                .map((c) => ({ label: c.nombre, value: String(c.id) }));
             case "stationId":
                 return filtersApi.estaciones.map((s) => ({ label: s.nombre, value: String(s.id) }));
             default:
@@ -89,7 +91,7 @@ export default function CompareModal({
 
     const options = getOptions();
 
-    // ✅ Ensure no overlap
+    // Ensure no overlap
     const onToggleA = (v: string) => {
         setAValues((prevA) => {
             const nextA = uniq(toggle(prevA, v));

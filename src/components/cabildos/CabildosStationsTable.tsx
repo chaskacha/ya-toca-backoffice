@@ -148,22 +148,28 @@ export default function CabildosStationsTable({
     <div style={{ marginTop: 28 }}>
       <div className="fs18 fw700">Comentarios por Participante</div>
       <div style={{ height: 10 }} />
-
+      {filters.cabildoId && [50, 51, 52].includes(Number(filters.cabildoId)) && (
+        <div style={{ color: "red", fontSize: 12 }}>
+          Comparación no disponible para Cabildos La Libertad - Urbano marginal 1, La Libertad - Urbano marginal 2 y La Libertad - Urbano marginal 3
+        </div>
+      )}
+      <br />
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-end" }}>
         <button
           onClick={() => setCompareOpen(true)}
+          disabled={!!(filters.cabildoId && [50, 51, 52].includes(Number(filters.cabildoId)))}
           style={{
             height: 40,
             padding: "0 12px",
             borderRadius: 8,
             border: "1px solid #ddd",
-            background: "#000",
+            background: filters.cabildoId && [50, 51, 52].includes(Number(filters.cabildoId)) ? "#ccc" : "#000",
             color: "#fff",
+            cursor: filters.cabildoId && [50, 51, 52].includes(Number(filters.cabildoId)) ? "not-allowed" : "pointer",
           }}
         >
           Comparar
         </button>
-
         <button
           onClick={() => {
             const params = new URLSearchParams();
@@ -213,12 +219,12 @@ export default function CabildosStationsTable({
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1600 }}>
             <thead>
               <tr style={{ textAlign: "left" }}>
-                <th style={stickyTh}>Cabildo</th>
-                <th style={stickyTh}>Región procedencia</th>
-                <th style={stickyTh}>Género</th>
-                <th style={stickyTh}>Edad</th>
-                <th style={stickyTh}>Nivel</th>
-                <th style={stickyTh}>Grupo étnico</th>
+                <th style={{ ...stickyTh, minWidth: 200 }}>Cabildo</th>
+                <th style={{ ...stickyTh, minWidth: 200 }}>Región procedencia</th>
+                <th style={{ ...stickyTh, minWidth: 100 }}>Género</th>
+                <th style={{ ...stickyTh, minWidth: 100 }}>Edad</th>
+                <th style={{ ...stickyTh, minWidth: 150 }}>Nivel</th>
+                <th style={{ ...stickyTh, minWidth: 150 }}>Grupo étnico</th>
 
                 <th style={{ ...stickyTh, minWidth: 360 }}>E1 CATARSIS</th>
                 <th style={{ ...stickyTh, minWidth: 360 }}>E2 CIRCUNSTANCIAS Y DIFERENCIAS</th>
@@ -231,7 +237,6 @@ export default function CabildosStationsTable({
             <tbody>
               {rows.map((r, idx) => (
                 <tr key={idx} style={{ borderBottom: "1px solid #000" }}>
-                  {/* <td style={{ padding: 12, whiteSpace: "nowrap" }}>{String(r.fecha).slice(0, 10)}</td> */}
                   <td style={{ padding: 12 }}>{r.cabildo || "-"}</td>
                   <td style={{ padding: 12 }}>{r.region_procedencia || "-"}</td>
                   <td style={{ padding: 12 }}>
@@ -241,19 +246,19 @@ export default function CabildosStationsTable({
                   <td style={{ padding: 12 }}>{r.nivelinstruccion || "-"}</td>
                   <td style={{ padding: 12 }}>{r.grupoetnico || "-"}</td>
 
-                  <td style={{ padding: 12, verticalAlign: "top" }}>
+                  <td style={{ padding: 12, verticalAlign: "middle" }}>
                     <Cell text={r.e1_catarsis} />
                   </td>
-                  <td style={{ padding: 12, verticalAlign: "top" }}>
+                  <td style={{ padding: 12, verticalAlign: "middle" }}>
                     <Cell text={r.e2_circunstancias} />
                   </td>
-                  <td style={{ padding: 12, verticalAlign: "top" }}>
+                  <td style={{ padding: 12, verticalAlign: "middle" }}>
                     <Cell text={r.e3_yo_presidente} />
                   </td>
-                  <td style={{ padding: 12, verticalAlign: "top" }}>
+                  <td style={{ padding: 12, verticalAlign: "middle" }}>
                     <Cell text={r.e4_estacion4} />
                   </td>
-                  <td style={{ padding: 12, verticalAlign: "top" }}>
+                  <td style={{ padding: 12, verticalAlign: "middle" }}>
                     <Cell text={r.cierre} />
                   </td>
                 </tr>

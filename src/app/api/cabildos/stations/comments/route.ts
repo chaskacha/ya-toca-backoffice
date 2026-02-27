@@ -27,11 +27,10 @@ export const GET = async (request: Request) => {
     const offset = (page - 1) * pageSize;
 
     const sql = `
-    WITH participants_base AS (
+WITH participants_base AS (
   SELECT
     p.id AS participant_id,
     p.id_cabildo,
-    p.fechacreacion AS fecha,
     cbl.name AS cabildo,
     reg.nombreregion AS region_cabildo,
     p.region AS region_procedencia,
@@ -60,7 +59,7 @@ filtered_participants AS (
     AND ($7::text IS NULL OR pb.nivelinstruccion = $7::text)
     AND ($8::text IS NULL OR pb.grupoetnico = $8::text)
 ),
-comments_by_station AS (
+comments_by_station_participants AS (
   SELECT
     fp.participant_id,
     e.id AS idestacion,
@@ -74,9 +73,8 @@ comments_by_station AS (
     e.id = ANY($2::int[])
     AND ($9::int IS NULL OR e.id = $9::int)
 ),
-pivoted AS (
+pivoted_participants AS (
   SELECT
-    fp.fecha,
     fp.participant_id,
     fp.cabildo,
     fp.region_cabildo,
@@ -115,27 +113,90 @@ pivoted AS (
       string_agg(com.comentario, E'\n\n' ORDER BY com.comentario_id)
       FILTER (WHERE com.idestacion = 15),
       ''
-    ) AS cierre
+    ) AS cierre,
+
+    MAX(com.comentario_id)::int AS last_comment_id,
+    false AS is_anonymous
 
   FROM filtered_participants fp
-  JOIN comments_by_station com ON com.participant_id = fp.participant_id
+  JOIN comments_by_station_participants com ON com.participant_id = fp.participant_id
   GROUP BY
-    fp.fecha, fp.participant_id, fp.cabildo, fp.region_cabildo, fp.region_procedencia,
+    fp.participant_id, fp.cabildo, fp.region_cabildo, fp.region_procedencia,
     fp.telefono, fp.genero, fp.age_group, fp.nivelinstruccion, fp.grupoetnico
+),
+
+-- Anonymous: comentarios with no link in comentariosparticipantes
+anonymous_comments AS (
+  SELECT
+    c.id AS comentario_id,
+    c.idcabildo AS id_cabildo,
+    c.idestacion AS idestacion,
+    c.texto AS comentario
+  FROM comentarios c
+  WHERE
+    c.idcabildo IS NOT NULL
+    AND c.idestacion = ANY($2::int[])
+    AND NOT EXISTS (
+      SELECT 1
+      FROM comentariosparticipantes cp
+      WHERE cp.idcomentario = c.id
+    )
+    AND ($3::int IS NULL OR c.idcabildo = $3::int)
+    AND ($9::int IS NULL OR c.idestacion = $9::int)
+),
+anonymous_rows AS (
+  SELECT
+    NULL::int AS participant_id,
+    cbl.name AS cabildo,
+    reg.nombreregion AS region_cabildo,
+
+    '-'::text AS region_procedencia,
+    '-'::text AS telefono,
+    '-'::text AS genero,
+    '-'::text AS age_group,
+    '-'::text AS nivelinstruccion,
+    '-'::text AS grupoetnico,
+
+    CASE WHEN c.idestacion = 14 THEN c.texto ELSE '' END AS e1_catarsis,
+    CASE WHEN c.idestacion = 11 THEN c.texto ELSE '' END AS e2_circunstancias,
+    CASE WHEN c.idestacion = 12 THEN c.texto ELSE '' END AS e3_yo_presidente,
+    CASE WHEN c.idestacion = 13 THEN c.texto ELSE '' END AS e4_estacion4,
+    CASE WHEN c.idestacion = 15 THEN c.texto ELSE '' END AS cierre,
+
+    c.id::int AS last_comment_id,
+    true AS is_anonymous
+  FROM comentarios c
+  JOIN cabildos cbl ON cbl.id = c.idcabildo
+  LEFT JOIN regiones reg ON reg.id = cbl.idregion
+  WHERE
+    c.idcabildo IS NOT NULL
+    AND c.idestacion = ANY($2::int[])
+    AND NOT EXISTS (
+      SELECT 1 FROM comentariosparticipantes cp WHERE cp.idcomentario = c.id
+    )
+    AND ($3::int IS NULL OR c.idcabildo = $3::int)
+    AND ($9::int IS NULL OR c.idestacion = $9::int)
+    AND ($4::text IS NULL OR reg.nombreregion = $4::text)
+),
+
+combined AS (
+  SELECT * FROM pivoted_participants
+  UNION ALL
+  SELECT * FROM anonymous_rows
 )
+
 SELECT
-  (SELECT COUNT(*)::int FROM pivoted) AS total,
+  (SELECT COUNT(*)::int FROM combined) AS total,
   (SELECT COALESCE(jsonb_agg(to_jsonb(t)), '[]'::jsonb)
    FROM (
      SELECT *
-     FROM pivoted
-     ORDER BY fecha DESC
+     FROM combined
+     ORDER BY last_comment_id DESC
      LIMIT $10 OFFSET $11
    ) t
   ) AS rows
 ;
-
-    `;
+`;
 
     const res = await query(sql, [
       ADMIN_PHONE,
