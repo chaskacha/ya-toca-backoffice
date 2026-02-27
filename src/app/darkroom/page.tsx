@@ -5,7 +5,6 @@ import Wrapper from "@/components/basic/wrapper";
 import SafeArea from "@/components/basic/safe-area";
 import "./styles.css";
 import DarkRoomDashboard from "@/components/darkroom/DarkRoomDashboard";
-import DarkRoomResponsesTable from "@/components/darkroom/DarkRoomResponsesTable";
 import Filter from "@/components/basic/filter/Filter";
 
 type Option = { label: string; value: string };
