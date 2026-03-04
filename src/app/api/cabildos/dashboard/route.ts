@@ -9,9 +9,15 @@ export const GET = async (request: Request) => {
     const { searchParams } = new URL(request.url);
 
     const region = searchParams.get("region");
-    const age = searchParams.get("age"); // now expects "15-" | "16-29" | "30-45" | "46+" (from age_group)
+    const age = searchParams.get("age"); // expects "15-" | "16-29" | "30-45" | "46+" (from age_group)
     const gender = searchParams.get("gender");
     const cabildoId = searchParams.get("cabildoId");
+    const nivelinstruccion = searchParams.get("nivelinstruccion");
+    const grupoetnico = searchParams.get("grupoetnico");
+
+    const stationIdRaw = searchParams.get("stationId");
+    const stationId =
+      stationIdRaw && /^\d+$/.test(stationIdRaw) ? Number(stationIdRaw) : null;
 
     const cabildoIdInt =
       cabildoId && /^\d+$/.test(cabildoId) ? Number(cabildoId) : null;
@@ -26,6 +32,8 @@ export const GET = async (request: Request) => {
           p.region,
           p.genero,
           p.age_group,
+          p.nivelinstruccion,
+          p.grupoetnico,
           p.fechacreacion
         FROM participantes p
         WHERE
@@ -57,7 +65,9 @@ export const GET = async (request: Request) => {
           d.*,
           c.name AS cabildo_nombre,
           COALESCE(NULLIF(btrim(d.age_group), ''), 'No especifica') AS age_group_norm,
-          COALESCE(NULLIF(btrim(d.genero), ''), 'No especifica') AS genero_norm
+          COALESCE(NULLIF(btrim(d.genero), ''), 'No especifica') AS genero_norm,
+          COALESCE(NULLIF(btrim(d.nivelinstruccion), ''), 'No especifica') AS nivelinstruccion_norm,
+          COALESCE(NULLIF(btrim(d.grupoetnico), ''), 'No especifica') AS grupoetnico_norm
         FROM dedup d
         LEFT JOIN cabildos c ON c.id = d.id_cabildo
       ),
@@ -70,6 +80,17 @@ export const GET = async (request: Request) => {
           AND ($3::text IS NULL OR b.age_group_norm = $3::text)
           AND ($4::text IS NULL OR b.genero_norm = $4::text)
           AND ($5::int  IS NULL OR b.id_cabildo = $5::int)
+          AND ($7::text IS NULL OR b.nivelinstruccion_norm = $7::text)
+          AND ($8::text IS NULL OR b.grupoetnico_norm = $8::text)
+          AND (
+        $9::int IS NULL OR EXISTS (
+          SELECT 1
+          FROM comentariosparticipantes cp
+          JOIN comentarios c ON c.id = cp.idcomentario
+          WHERE cp.idparticipante = b.id
+            AND c.idestacion = $9::int
+        )
+       )
       )
 
       SELECT
@@ -119,6 +140,9 @@ export const GET = async (request: Request) => {
       gender || null,
       cabildoIdInt,
       NO_DEDUP_CABILDO_IDS,
+      nivelinstruccion || null,
+      grupoetnico || null,
+      stationId || null
     ]);
 
     const row = res.rows?.[0];

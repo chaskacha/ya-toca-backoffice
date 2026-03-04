@@ -40,24 +40,29 @@ function toChartData(obj: Breakdown) {
     return { labels, values };
 }
 
-export default function CabildosDashboard({ filters }: { filters: {
-  cabildoId: string;
-  region: string;
-  age: string;
-  gender: string;
-  nivelinstruccion: string;
-  grupoetnico: string;
-  stationId: string;
-}}) {
+export default function CabildosDashboard({ filters }: {
+    filters: {
+        cabildoId: string;
+        region: string;
+        age: string;
+        gender: string;
+        nivelinstruccion: string;
+        grupoetnico: string;
+        stationId: string;
+    }
+}) {
     const [data, setData] = React.useState<ApiResponse | null>(null);
     const [loading, setLoading] = React.useState(true);
 
     const buildUrl = React.useCallback(() => {
         const params = new URLSearchParams();
+        if (filters.cabildoId) params.set("cabildoId", filters.cabildoId);
         if (filters.region) params.set("region", filters.region);
         if (filters.age) params.set("age", filters.age);
         if (filters.gender) params.set("gender", filters.gender);
-        if (filters.cabildoId) params.set("cabildoId", filters.cabildoId);
+        if (filters.nivelinstruccion) params.set("nivelinstruccion", filters.nivelinstruccion);
+        if (filters.grupoetnico) params.set("grupoetnico", filters.grupoetnico);
+        if (filters.stationId) params.set("stationId", filters.stationId);
 
         const qs = params.toString();
         return qs ? `/api/cabildos/dashboard?${qs}` : `/api/cabildos/dashboard`;

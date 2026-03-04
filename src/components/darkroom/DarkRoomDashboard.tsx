@@ -172,6 +172,16 @@ export default function DarkRoomDashboard({
         };
     }, [data, segmentBy]);
 
+    const rowTotals = React.useMemo(() => {
+        const totals: Record<string, number> = {};
+        twoOptionsSegmentChart.labels.forEach((label, i) => {
+            const a = Number(twoOptionsSegmentChart.aValues[i] || 0);
+            const b = Number(twoOptionsSegmentChart.bValues[i] || 0);
+            totals[label] = a + b;
+        });
+        return totals;
+    }, [twoOptionsSegmentChart.labels, twoOptionsSegmentChart.aValues, twoOptionsSegmentChart.bValues]);
+
     if (loadingFilters) return <div className="dash-loading">Cargando filtros...</div>;
     if (loading) return <div className="dash-loading">Cargando dashboard...</div>;
     if (!data) return <div className="dash-loading">No se pudo cargar la data.</div>;
@@ -341,7 +351,18 @@ export default function DarkRoomDashboard({
                                     },
                                     scales: {
                                         x: { beginAtZero: true, stacked: true, ticks: { precision: 0 } },
-                                        y: { stacked: true, ticks: { autoSkip: false } },
+                                        y: {
+                                            stacked: true, ticks: {
+                                                autoSkip: false,
+                                                callback: function (value) {
+                                                    // "value" is tick index for category axis
+                                                    // @ts-ignore ChartJS provides getLabelForValue on category scale
+                                                    const label = (this as any).getLabelForValue(value);
+                                                    const total = rowTotals[label] ?? 0;
+                                                    return `${label} (${total})`;
+                                                },
+                                            },
+                                        },
                                     },
                                 }}
                             />
