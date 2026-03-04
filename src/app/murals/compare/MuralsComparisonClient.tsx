@@ -113,7 +113,10 @@ export default function MuralsComparisonClient() {
                                     cohortA_label={cohortA_label}
                                     cohortB_label={cohortB_label}
                                 />
-                                <MuralsComparisonChat basis={data} />
+                                <MuralsComparisonChat
+                                    mode="compare"
+                                    basis={data}
+                                />
                             </>
                         ) : null}
                     </>
