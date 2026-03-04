@@ -1,4 +1,3 @@
-// components/murals/MuralsDashboard.tsx
 'use client';
 
 import React from "react";
@@ -27,16 +26,17 @@ function toRows(obj: Breakdown) {
 export default function MuralsDashboard({
     filters,
 }: {
-    filters: { regionId: string; eventId: string; activityId: string };
+    filters: { regionId: string[]; eventId: string[]; activityId: string[] };
 }) {
     const [data, setData] = React.useState<ApiResponse | null>(null);
     const [loading, setLoading] = React.useState(true);
 
     const buildUrl = React.useCallback(() => {
         const params = new URLSearchParams();
-        if (filters.regionId) params.set("regionId", filters.regionId);
-        if (filters.eventId) params.set("eventId", filters.eventId);
-        if (filters.activityId) params.set("activityId", filters.activityId);
+
+        (filters.regionId ?? []).forEach((v) => params.append("regionId", v));
+        (filters.eventId ?? []).forEach((v) => params.append("eventId", v));
+        (filters.activityId ?? []).forEach((v) => params.append("activityId", v));
 
         const qs = params.toString();
         return qs ? `/api/murals/dashboard?${qs}` : `/api/murals/dashboard`;
@@ -80,11 +80,8 @@ export default function MuralsDashboard({
         return rows;
     }, [data]);
 
-    if (loading)
-        return <div className="dash-loading">Cargando dashboard...</div>;
-
-    if (!data)
-        return <div className="dash-loading">No se pudo cargar la data.</div>;
+    if (loading) return <div className="dash-loading">Cargando dashboard...</div>;
+    if (!data) return <div className="dash-loading">No se pudo cargar la data.</div>;
 
     return (
         <div className="dash-container">
@@ -113,8 +110,7 @@ export default function MuralsDashboard({
                 </Card>
             </div>
 
-            {Array.isArray(data.breakdown?.topPhrases) &&
-                data.breakdown.topPhrases.length > 0 ? (
+            {Array.isArray(data.breakdown?.topPhrases) && data.breakdown.topPhrases.length > 0 ? (
                 <>
                     <br />
                     <Card title="Top frases" scrollY maxBodyHeight={360}>

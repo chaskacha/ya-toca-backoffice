@@ -22,13 +22,27 @@ export const GET = async () => {
     `);
 
         const fRes = await query(`
-      SELECT
-        array_agg(DISTINCT age_group) AS age_groups,
-        array_agg(DISTINCT gender)    AS genders
-      FROM dark_room_responses
-      WHERE age_group IS NOT NULL AND btrim(age_group) <> ''
-        AND gender IS NOT NULL AND btrim(gender) <> ''
-    `);
+WITH norm AS (
+  SELECT
+    COALESCE(NULLIF(btrim(age_group), ''), 'No especifica') AS age_group,
+    CASE
+      WHEN lower(COALESCE(NULLIF(btrim(gender), ''), 'No especifica')) IN ('h','masculino','male','m') THEN 'Masculino'
+      WHEN lower(COALESCE(NULLIF(btrim(gender), ''), 'No especifica')) IN ('f','femenino','female') THEN 'Femenino'
+      WHEN lower(COALESCE(NULLIF(btrim(gender), ''), 'No especifica')) IN (
+        'o','otro','other',
+        'prefiero no indicar','prefiero no decir','prefiero no responder','prefiero no especificar',
+        'no indica','no indicar'
+      ) THEN 'Otro'
+      WHEN COALESCE(NULLIF(btrim(gender), ''), 'No especifica') = 'No especifica' THEN 'No especifica'
+      ELSE COALESCE(NULLIF(btrim(gender), ''), 'No especifica')
+    END AS gender_norm
+  FROM dark_room_responses
+)
+SELECT
+  array_agg(DISTINCT age_group) AS age_groups,
+  array_agg(DISTINCT gender_norm) AS genders
+FROM norm
+`);
 
         const rRes = await query(`
       SELECT DISTINCT

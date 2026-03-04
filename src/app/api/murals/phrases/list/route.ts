@@ -1,17 +1,18 @@
-// app/api/murals/phrases/list/route.ts
 import { query } from "@/lib/db";
+
+const toIntArray = (arr: string[]) =>
+  (arr ?? [])
+    .map((x) => String(x).trim())
+    .filter((x) => /^\d+$/.test(x))
+    .map((x) => Number(x));
 
 export const GET = async (request: Request) => {
   try {
     const { searchParams } = new URL(request.url);
 
-    const regionIdRaw = searchParams.get("regionId");
-    const eventIdRaw = searchParams.get("eventId");
-    const activityIdRaw = searchParams.get("activityId");
-
-    const regionId = regionIdRaw && /^\d+$/.test(regionIdRaw) ? Number(regionIdRaw) : null;
-    const eventId = eventIdRaw && /^\d+$/.test(eventIdRaw) ? Number(eventIdRaw) : null;
-    const activityId = activityIdRaw && /^\d+$/.test(activityIdRaw) ? Number(activityIdRaw) : null;
+    const regionIds = toIntArray(searchParams.getAll("regionId"));
+    const eventIds = toIntArray(searchParams.getAll("eventId"));
+    const activityIds = toIntArray(searchParams.getAll("activityId"));
 
     const page = Math.max(1, Number(searchParams.get("page") || "1"));
     const pageSize = Math.min(100, Math.max(10, Number(searchParams.get("pageSize") || "20")));
@@ -53,9 +54,9 @@ filtered AS (
   SELECT *
   FROM base b
   WHERE
-    ($1::int IS NULL OR b.id_region = $1::int)
-    AND ($2::int IS NULL OR b.event_id = $2::int)
-    AND ($3::int IS NULL OR b.activity_id = $3::int)
+    (cardinality($1::int[]) = 0 OR b.id_region = ANY($1::int[]))
+    AND (cardinality($2::int[]) = 0 OR b.event_id = ANY($2::int[]))
+    AND (cardinality($3::int[]) = 0 OR b.activity_id = ANY($3::int[]))
 )
 SELECT
   (SELECT COUNT(*)::int FROM filtered) AS total,
@@ -82,7 +83,7 @@ SELECT
   ) AS rows;
 `;
 
-    const res = await query(sql, [regionId, eventId, activityId, pageSize, offset]);
+    const res = await query(sql, [regionIds, eventIds, activityIds, pageSize, offset]);
     const row = res.rows?.[0] ?? {};
 
     return new Response(

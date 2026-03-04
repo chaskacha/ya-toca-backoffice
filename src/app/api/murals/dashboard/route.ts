@@ -1,17 +1,18 @@
-// app/api/murals/dashboard/route.ts
 import { query } from "@/lib/db";
+
+const toIntArray = (arr: string[]) =>
+  (arr ?? [])
+    .map((x) => String(x).trim())
+    .filter((x) => /^\d+$/.test(x))
+    .map((x) => Number(x));
 
 export const GET = async (request: Request) => {
   try {
     const { searchParams } = new URL(request.url);
 
-    const regionIdRaw = searchParams.get("regionId");
-    const eventIdRaw = searchParams.get("eventId");
-    const activityIdRaw = searchParams.get("activityId");
-
-    const regionId = regionIdRaw && /^\d+$/.test(regionIdRaw) ? Number(regionIdRaw) : null;
-    const eventId = eventIdRaw && /^\d+$/.test(eventIdRaw) ? Number(eventIdRaw) : null;
-    const activityId = activityIdRaw && /^\d+$/.test(activityIdRaw) ? Number(activityIdRaw) : null;
+    const regionIds = toIntArray(searchParams.getAll("regionId"));
+    const eventIds = toIntArray(searchParams.getAll("eventId"));
+    const activityIds = toIntArray(searchParams.getAll("activityId"));
 
     const sql = `
 WITH base_events AS (
@@ -23,8 +24,8 @@ WITH base_events AS (
   FROM events ev
   LEFT JOIN regiones r ON r.id = ev.id_region
   WHERE
-    ($1::int IS NULL OR ev.id_region = $1::int)
-    AND ($2::int IS NULL OR ev.id = $2::int)
+    (cardinality($1::int[]) = 0 OR ev.id_region = ANY($1::int[]))
+    AND (cardinality($2::int[]) = 0 OR ev.id = ANY($2::int[]))
 ),
 base_activities AS (
   SELECT
@@ -38,7 +39,7 @@ base_activities AS (
     be.region_name
   FROM activities a
   JOIN base_events be ON be.event_id = a.id_event
-  WHERE ($3::int IS NULL OR a.id = $3::int)
+  WHERE (cardinality($3::int[]) = 0 OR a.id = ANY($3::int[]))
 ),
 base_photos AS (
   SELECT
@@ -103,9 +104,7 @@ SELECT
 
   (SELECT COALESCE(jsonb_object_agg(k, v), '{}'::jsonb)
    FROM (
-     SELECT
-       (COALESCE(name_event,'Sin actividad')) AS k,
-       COUNT(*)::int AS v
+     SELECT (COALESCE(name_event,'Sin actividad')) AS k, COUNT(*)::int AS v
      FROM base_phrases
      GROUP BY (COALESCE(name_event,'Sin actividad'))
      ORDER BY COUNT(*) DESC
@@ -114,7 +113,7 @@ SELECT
 ;
 `;
 
-    const res = await query(sql, [regionId, eventId, activityId]);
+    const res = await query(sql, [regionIds, eventIds, activityIds]);
     const row = res.rows?.[0];
 
     return new Response(

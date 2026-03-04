@@ -6,9 +6,7 @@ import SafeArea from "@/components/basic/safe-area";
 import "./styles.css";
 import MuralsDashboard from "@/components/murals/MuralsDashboard";
 import MuralsPhrasesTable from "@/components/murals/MuralsPhrasesTable";
-import Filter from "@/components/basic/filter/Filter";
-
-type Option = { label: string; value: string };
+import MultiSelectChipsDropdown, { ChipOption } from "@/components/basic/chip-multiselect/ChipMultiselect";
 
 type FiltersApi = {
     regions: { id: number; nombreregion: string }[];
@@ -19,12 +17,12 @@ type EventItem = { id: number; name: string; id_region: number; region_name?: st
 type ActivityItem = { id: number; name_event: string; date_event: string | null; id_event: number; event_name?: string | null };
 
 export type MuralsFiltersState = {
-    regionId: string;
-    eventId: string;
-    activityId: string;
+    regionId: string[];
+    eventId: string[];
+    activityId: string[];
 };
 
-const DEFAULT_FILTERS: MuralsFiltersState = { regionId: "", eventId: "", activityId: "" };
+const DEFAULT_FILTERS: MuralsFiltersState = { regionId: [], eventId: [], activityId: [] };
 
 export default function Murals() {
     const [filtersApi, setFiltersApi] = React.useState<FiltersApi | null>(null);
@@ -32,11 +30,11 @@ export default function Murals() {
 
     const [filters, setFilters] = React.useState<MuralsFiltersState>(DEFAULT_FILTERS);
 
-    // Events (depend on regionId)
+    // Events (depend on regionId[])
     const [eventsList, setEventsList] = React.useState<EventItem[]>([]);
     const [loadingEvents, setLoadingEvents] = React.useState(false);
 
-    // Activities (depend on regionId + eventId)
+    // Activities (depend on regionId[] + eventId[])
     const [activitiesList, setActivitiesList] = React.useState<ActivityItem[]>([]);
     const [loadingActivities, setLoadingActivities] = React.useState(false);
 
@@ -57,13 +55,14 @@ export default function Murals() {
         run();
     }, []);
 
+    // Load events when region(s) change
     React.useEffect(() => {
         const loadEvents = async () => {
             try {
                 setLoadingEvents(true);
 
                 const params = new URLSearchParams();
-                if (filters.regionId) params.set("regionId", filters.regionId);
+                (filters.regionId ?? []).forEach((v) => params.append("regionId", v));
 
                 const url = params.toString()
                     ? `/api/murals/events/list?${params.toString()}`
@@ -83,14 +82,15 @@ export default function Murals() {
         loadEvents();
     }, [filters.regionId]);
 
+    // Load activities when region(s) or event(s) change
     React.useEffect(() => {
         const loadActivities = async () => {
             try {
                 setLoadingActivities(true);
 
                 const params = new URLSearchParams();
-                if (filters.regionId) params.set("regionId", filters.regionId);
-                if (filters.eventId) params.set("eventId", filters.eventId);
+                (filters.regionId ?? []).forEach((v) => params.append("regionId", v));
+                (filters.eventId ?? []).forEach((v) => params.append("eventId", v));
 
                 const url = params.toString()
                     ? `/api/murals/activities/list?${params.toString()}`
@@ -110,25 +110,22 @@ export default function Murals() {
         loadActivities();
     }, [filters.regionId, filters.eventId]);
 
-    const regionOptions: Option[] = React.useMemo(() => {
+    const regionOptions: ChipOption[] = React.useMemo(() => {
         const list = filtersApi?.regions ?? [];
-        return [{ label: "Todas", value: "" }, ...list.map((r) => ({ label: r.nombreregion, value: String(r.id) }))];
+        return list.map((r) => ({ label: r.nombreregion, value: String(r.id) }));
     }, [filtersApi]);
 
-    const eventOptions: Option[] = React.useMemo(() => {
+    const eventOptions: ChipOption[] = React.useMemo(() => {
         const list = eventsList ?? [];
-        return [{ label: "Todos", value: "" }, ...list.map((e) => ({ label: e.name, value: String(e.id) }))];
+        return list.map((e) => ({ label: e.name, value: String(e.id) }));
     }, [eventsList]);
 
-    const activityOptions: Option[] = React.useMemo(() => {
+    const activityOptions: ChipOption[] = React.useMemo(() => {
         const list = activitiesList ?? [];
-        return [
-            { label: "Todas", value: "" },
-            ...list.map((a) => ({
-                label: `${a.name_event}`,
-                value: String(a.id),
-            })),
-        ];
+        return list.map((a) => ({
+            label: `${a.name_event}`,
+            value: String(a.id),
+        }));
     }, [activitiesList]);
 
     const isLoadingTop = loadingFilters || loadingEvents || loadingActivities;
@@ -139,32 +136,54 @@ export default function Murals() {
                 <SafeArea mv={32}>
                     <>
                         <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-end" }}>
-                            <Filter
+                            <MultiSelectChipsDropdown
                                 label="Región"
                                 value={filters.regionId}
-                                onChange={(v) => setFilters((p) => ({ ...p, regionId: v, eventId: "", activityId: "" }))}
+                                onChange={(vals) =>
+                                    setFilters((p) => ({
+                                        ...p,
+                                        regionId: vals,
+                                        eventId: [],
+                                        activityId: [],
+                                    }))
+                                }
                                 options={regionOptions}
-                                disabled={!!(filters.activityId || filters.eventId)}
+                                placeholder="Todas"
+                                disabled={filters.activityId.length > 0 || filters.eventId.length > 0}
                             />
 
-                            <Filter
+                            <MultiSelectChipsDropdown
                                 label="Evento"
                                 value={filters.eventId}
-                                onChange={(v) => setFilters((p) => ({ ...p, eventId: v, activityId: "" }))}
+                                onChange={(vals) =>
+                                    setFilters((p) => ({
+                                        ...p,
+                                        eventId: vals,
+                                        activityId: [],
+                                    }))
+                                }
                                 options={eventOptions}
-                                disabled={!!(filters.activityId)}
+                                placeholder="Todos"
+                                disabled={filters.activityId.length > 0}
                             />
 
-                            <Filter
+                            <MultiSelectChipsDropdown
                                 label="Actividad"
                                 value={filters.activityId}
-                                onChange={(v) => setFilters((p) => ({ ...p, activityId: v }))}
+                                onChange={(vals) => setFilters((p) => ({ ...p, activityId: vals }))}
                                 options={activityOptions}
+                                placeholder="Todas"
                             />
 
                             <button
                                 onClick={() => setFilters(DEFAULT_FILTERS)}
-                                style={{ height: 40, padding: "0 12px", borderRadius: 8, border: "1px solid #ddd", background: "#fff" }}
+                                style={{
+                                    height: 40,
+                                    padding: "0 12px",
+                                    borderRadius: 8,
+                                    border: "1px solid #ddd",
+                                    background: "#fff",
+                                }}
                             >
                                 Limpiar
                             </button>

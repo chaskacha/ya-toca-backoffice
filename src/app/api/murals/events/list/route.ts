@@ -1,15 +1,16 @@
-// app/api/murals/events/list/route.ts
 import { query } from "@/lib/db";
+
+const toIntArray = (arr: string[]) =>
+  (arr ?? [])
+    .map((x) => String(x).trim())
+    .filter((x) => /^\d+$/.test(x))
+    .map((x) => Number(x));
 
 export const GET = async (request: Request) => {
   try {
     const { searchParams } = new URL(request.url);
 
-    const regionIdRaw = searchParams.get("regionId");
-    const qRaw = searchParams.get("q");
-
-    const regionId = regionIdRaw && /^\d+$/.test(regionIdRaw) ? Number(regionIdRaw) : null;
-    const q = qRaw ? String(qRaw).trim() : "";
+    const regionIds = toIntArray(searchParams.getAll("regionId"));
 
     const sql = `
       SELECT
@@ -20,20 +21,18 @@ export const GET = async (request: Request) => {
       FROM events ev
       LEFT JOIN regiones r ON r.id = ev.id_region
       WHERE
-        ev.name IS NOT NULL AND btrim(ev.name) <> ''
-        AND ($1::int IS NULL OR ev.id_region = $1::int)
-        AND ($2::text = '' OR ev.name ILIKE '%' || $2::text || '%')
+        (cardinality($1::int[]) = 0 OR ev.id_region = ANY($1::int[]))
       ORDER BY ev.name ASC
     `;
 
-    const res = await query(sql, [regionId, q]);
+    const res = await query(sql, [regionIds]);
 
-    return new Response(JSON.stringify({ events: res.rows }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ events: res.rows ?? [] }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
   } catch (e) {
-    console.error("Error loading mural events list:", e);
+    console.error(e);
     return new Response(JSON.stringify({ error: "Error interno del servidor" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },

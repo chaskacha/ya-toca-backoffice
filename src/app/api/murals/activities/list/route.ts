@@ -1,44 +1,44 @@
-// app/api/murals/activities/list/route.ts
 import { query } from "@/lib/db";
 
+const toIntArray = (arr: string[]) =>
+  (arr ?? [])
+    .map((x) => String(x).trim())
+    .filter((x) => /^\d+$/.test(x))
+    .map((x) => Number(x));
+
 export const GET = async (request: Request) => {
-    try {
-        const { searchParams } = new URL(request.url);
+  try {
+    const { searchParams } = new URL(request.url);
 
-        const regionIdRaw = searchParams.get("regionId");
-        const eventIdRaw = searchParams.get("eventId");
+    const regionIds = toIntArray(searchParams.getAll("regionId"));
+    const eventIds = toIntArray(searchParams.getAll("eventId"));
 
-        const regionId = regionIdRaw && /^\d+$/.test(regionIdRaw) ? Number(regionIdRaw) : null;
-        const eventId = eventIdRaw && /^\d+$/.test(eventIdRaw) ? Number(eventIdRaw) : null;
-
-        const sql = `
+    const sql = `
       SELECT
         a.id,
         a.name_event,
         a.date_event,
-        a.id_event
+        a.id_event,
+        ev.name AS event_name
       FROM activities a
+      LEFT JOIN events ev ON ev.id = a.id_event
       WHERE
-        a.name_event IS NOT NULL AND btrim(a.name_event) <> ''
-        AND ($1::int IS NULL OR a.id_event = $1::int)
-        AND ($2::int IS NULL OR EXISTS (
-          SELECT 1 FROM events ev
-          WHERE ev.id = a.id_event AND ev.id_region = $2::int
-        ))
-      ORDER BY a.date_event DESC NULLS LAST, a.name_event ASC
+        (cardinality($1::int[]) = 0 OR ev.id_region = ANY($1::int[]))
+        AND (cardinality($2::int[]) = 0 OR a.id_event = ANY($2::int[]))
+      ORDER BY a.name_event ASC
     `;
 
-        const res = await query(sql, [eventId, regionId]);
+    const res = await query(sql, [regionIds, eventIds]);
 
-        return new Response(JSON.stringify({ activities: res.rows }), {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-        });
-    } catch (e) {
-        console.error("Error loading mural activities list:", e);
-        return new Response(JSON.stringify({ error: "Error interno del servidor" }), {
-            status: 500,
-            headers: { "Content-Type": "application/json" },
-        });
-    }
+    return new Response(
+      JSON.stringify({ activities: res.rows ?? [] }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
+  } catch (e) {
+    console.error(e);
+    return new Response(JSON.stringify({ error: "Error interno del servidor" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 };

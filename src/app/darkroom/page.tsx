@@ -5,16 +5,14 @@ import Wrapper from "@/components/basic/wrapper";
 import SafeArea from "@/components/basic/safe-area";
 import "./styles.css";
 import DarkRoomDashboard from "@/components/darkroom/DarkRoomDashboard";
-import Filter from "@/components/basic/filter/Filter";
-
-type Option = { label: string; value: string };
+import MultiSelectChipsDropdown, { ChipOption } from "@/components/basic/chip-multiselect/ChipMultiselect";
 
 export type DarkRoomFiltersState = {
-    questionId: string;
-    optionId: string;
-    age: string;
-    gender: string;
-    regionId: string;
+    questionId: string[];   // now multi
+    optionId: string[];     // now multi (but we'll restrict UI by question)
+    age: string[];
+    gender: string[];
+    regionId: string[];
 };
 
 type FiltersApi = {
@@ -26,17 +24,16 @@ type FiltersApi = {
 };
 
 const DEFAULT_FILTERS: DarkRoomFiltersState = {
-    questionId: "",
-    optionId: "",
-    age: "",
-    gender: "",
-    regionId: "",
+    questionId: [],
+    optionId: [],
+    age: [],
+    gender: [],
+    regionId: [],
 };
 
 export default function DarkRoom() {
     const [filtersApi, setFiltersApi] = React.useState<FiltersApi | null>(null);
     const [loadingFilters, setLoadingFilters] = React.useState(true);
-
     const [filters, setFilters] = React.useState<DarkRoomFiltersState>(DEFAULT_FILTERS);
 
     React.useEffect(() => {
@@ -56,37 +53,44 @@ export default function DarkRoom() {
         run();
     }, []);
 
-    const questionOptions: Option[] = React.useMemo(() => {
+    const questionOptions: ChipOption[] = React.useMemo(() => {
         const list = filtersApi?.questions ?? [];
-        return [{ label: "Todas", value: "" }, ...list.map((q) => ({ label: q.text, value: String(q.id) }))];
+        return list.map((q) => ({ label: q.text, value: String(q.id) }));
     }, [filtersApi]);
 
-    const optionOptions: Option[] = React.useMemo(() => {
-        const qid = filters.questionId && /^\d+$/.test(filters.questionId) ? Number(filters.questionId) : null;
-        if (!qid || !filtersApi?.optionsByQuestion?.[qid]) return [{ label: "Todas", value: "" }];
-        const list = filtersApi.optionsByQuestion[qid] ?? [];
-        return [{ label: "Todas", value: "" }, ...list.map((o) => ({ label: o.text, value: String(o.id) }))];
-    }, [filtersApi, filters.questionId]);
+    const selectedQuestionId = React.useMemo(() => {
+        // only allow option dropdown when exactly 1 question selected
+        if (filters.questionId.length !== 1) return null;
+        const q = filters.questionId[0];
+        return q && /^\d+$/.test(q) ? Number(q) : null;
+    }, [filters.questionId]);
 
-    const ageOptions: Option[] = React.useMemo(() => {
+    const optionOptions: ChipOption[] = React.useMemo(() => {
+        const qid = selectedQuestionId;
+        if (!qid || !filtersApi?.optionsByQuestion?.[qid]) return [];
+        const list = filtersApi.optionsByQuestion[qid] ?? [];
+        return list.map((o) => ({ label: o.text, value: String(o.id) }));
+    }, [filtersApi, selectedQuestionId]);
+
+    const ageOptions: ChipOption[] = React.useMemo(() => {
         const list = filtersApi?.ageGroups?.length
             ? filtersApi.ageGroups
             : ["15-", "16-29", "30-45", "46+", "No especifica"];
-        return [{ label: "Todas", value: "" }, ...list.map((x) => ({ label: x, value: x }))];
+        return list.map((x) => ({ label: x, value: x }));
     }, [filtersApi]);
 
-    const genderOptions: Option[] = React.useMemo(() => {
+    const genderOptions: ChipOption[] = React.useMemo(() => {
         const list = filtersApi?.genders?.length
             ? filtersApi.genders
             : ["Femenino", "Masculino", "Otro", "No especifica"];
-        return [{ label: "Todos", value: "" }, ...list.map((x) => ({ label: x, value: x }))];
+        return list.map((x) => ({ label: x, value: x }));
     }, [filtersApi]);
 
-    const regionOptions: Option[] = React.useMemo(() => {
+    const regionOptions: ChipOption[] = React.useMemo(() => {
         const list = filtersApi?.regions?.length
             ? filtersApi.regions
             : [{ id: 29, name: "Lima" }, { id: 23, name: "Arequipa" }];
-        return [{ label: "Todas", value: "" }, ...list.map((r) => ({ label: r.name, value: String(r.id) }))];
+        return list.map((r) => ({ label: r.name, value: String(r.id) }));
     }, [filtersApi]);
 
     return (
@@ -95,38 +99,51 @@ export default function DarkRoom() {
                 <SafeArea mv={32}>
                     <>
                         <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-end" }}>
-                            <Filter
+                            <MultiSelectChipsDropdown
                                 label="Pregunta"
                                 value={filters.questionId}
-                                onChange={(v) =>
+                                onChange={(vals: string[]) =>
                                     setFilters((p) => ({
                                         ...p,
-                                        questionId: v,
-                                        optionId: "",
+                                        questionId: vals,
+                                        optionId: [], // reset options when question changes
                                     }))
                                 }
                                 options={questionOptions}
+                                placeholder="Seleccionar pregunta(s)"
                             />
 
-                            <Filter
+                            <MultiSelectChipsDropdown
+                                label="Opción"
+                                value={filters.optionId}
+                                onChange={(vals: string[]) => setFilters((p) => ({ ...p, optionId: vals }))}
+                                options={optionOptions}
+                                placeholder={selectedQuestionId ? "Seleccionar opción(es)" : "Selecciona 1 pregunta"}
+                                disabled={!selectedQuestionId}
+                            />
+
+                            <MultiSelectChipsDropdown
                                 label="Edad"
                                 value={filters.age}
-                                onChange={(v) => setFilters((p) => ({ ...p, age: v }))}
+                                onChange={(vals: string[]) => setFilters((p) => ({ ...p, age: vals }))}
                                 options={ageOptions}
+                                placeholder="Todas"
                             />
 
-                            <Filter
+                            <MultiSelectChipsDropdown
                                 label="Género"
                                 value={filters.gender}
-                                onChange={(v) => setFilters((p) => ({ ...p, gender: v }))}
+                                onChange={(vals: string[]) => setFilters((p) => ({ ...p, gender: vals }))}
                                 options={genderOptions}
+                                placeholder="Todos"
                             />
 
-                            <Filter
+                            <MultiSelectChipsDropdown
                                 label="Región"
                                 value={filters.regionId}
-                                onChange={(v) => setFilters((p) => ({ ...p, regionId: v }))}
+                                onChange={(vals: string[]) => setFilters((p) => ({ ...p, regionId: vals }))}
                                 options={regionOptions}
+                                placeholder="Todas"
                             />
 
                             <button

@@ -102,11 +102,12 @@ export default function DarkRoomDashboard({
 
     const buildUrl = React.useCallback(() => {
         const params = new URLSearchParams();
-        if (filters.regionId) params.set("regionId", filters.regionId);
-        if (filters.questionId) params.set("questionId", filters.questionId);
-        if (filters.optionId) params.set("optionId", filters.optionId);
-        if (filters.age) params.set("age", filters.age);
-        if (filters.gender) params.set("gender", filters.gender);
+
+        (filters.regionId ?? []).forEach((v) => params.append("regionId", v));
+        (filters.questionId ?? []).forEach((v) => params.append("questionId", v));
+        (filters.optionId ?? []).forEach((v) => params.append("optionId", v));
+        (filters.age ?? []).forEach((v) => params.append("age", v));
+        (filters.gender ?? []).forEach((v) => params.append("gender", v));
 
         const qs = params.toString();
         return qs ? `/api/darkroom/dashboard?${qs}` : `/api/darkroom/dashboard`;
@@ -132,14 +133,47 @@ export default function DarkRoomDashboard({
     const age = React.useMemo(() => (data ? toChartData(data.breakdown.age) : null), [data]);
     const gender = React.useMemo(() => (data ? toChartData(data.breakdown.gender) : null), [data]);
 
+    // Eligibility rule for A vs B:
+    // - exactly 1 question selected
+    // - NO option filters selected
+    const twoOptionsEligible = React.useMemo(() => {
+        const qLen = (filters.questionId ?? []).length;
+        const oLen = (filters.optionId ?? []).length;
+        return qLen === 1 && oLen === 0;
+    }, [filters.questionId, filters.optionId]);
+
+    const twoOptionsReason = React.useMemo(() => {
+        const qLen = (filters.questionId ?? []).length;
+        const oLen = (filters.optionId ?? []).length;
+
+        if (qLen === 0) return "Selecciona 1 pregunta para ver la comparación A vs B.";
+        if (qLen > 1) return "Para ver A vs B, selecciona SOLO 1 pregunta (no múltiples).";
+        if (oLen > 0) return "Para ver A vs B, limpia el filtro de Opción (debe estar vacío).";
+        return "";
+    }, [filters.questionId, filters.optionId]);
+
     const twoOptionsSegmentChart = React.useMemo(() => {
         const meta = data?.twoOptionsMeta ?? null;
         const segs = data?.twoOptionsSegments ?? null;
 
+        // If not eligible by UI filters, show human reason (even if API may return null)
+        if (!twoOptionsEligible) {
+            return {
+                ok: false,
+                reason: twoOptionsReason,
+                labels: [] as string[],
+                aValues: [] as number[],
+                bValues: [] as number[],
+                aLabel: "",
+                bLabel: "",
+            };
+        }
+
+        // Eligible, but backend might still not have 2 options or returns empty
         if (!meta || !segs) {
             return {
                 ok: false,
-                reason: "Selecciona una pregunta (y no una opción) para ver la comparación A vs B.",
+                reason: "No se pudo construir A vs B para esta pregunta (puede que no tenga 2 opciones).",
                 labels: [] as string[],
                 aValues: [] as number[],
                 bValues: [] as number[],
@@ -170,7 +204,7 @@ export default function DarkRoomDashboard({
             aLabel: meta.aLabel,
             bLabel: meta.bLabel,
         };
-    }, [data, segmentBy]);
+    }, [data, segmentBy, twoOptionsEligible, twoOptionsReason]);
 
     const rowTotals = React.useMemo(() => {
         const totals: Record<string, number> = {};
@@ -193,119 +227,123 @@ export default function DarkRoomDashboard({
             <div style={{ height: 18 }} />
 
             <div className="dash-grid">
-                {!filters.age && <Card title="Edad" scrollY maxBodyHeight={600} minHeight={400}>
-                    {age && (() => {
-                        const rows = buildPercentRows(age.labels, age.values);
-
-                        return (
-                            <div style={{ width: "100%", maxWidth: 420, minHeight: 200, maxHeight: 200, margin: "0 auto" }}>
-                                <Doughnut
-                                    data={{
-                                        labels: age.labels,
-                                        datasets: [{
-                                            data: age.values,
-                                            backgroundColor: colorsFromMap(age.labels, CHART_COLORS.age),
-                                            borderWidth: 0,
-                                        }],
-                                    }}
-                                    options={{
-                                        cutout: "70%",
-                                        plugins: {
-                                            legend: { display: false },
-                                            tooltip: {
-                                                callbacks: {
-                                                    label: (ctx) => {
-                                                        const label = ctx.label || "";
-                                                        const value = Number(ctx.parsed || 0);
-                                                        const total = (ctx.dataset.data as number[]).reduce((a, b) => a + Number(b || 0), 0) || 1;
-                                                        const pct = ((value / total) * 100).toFixed(1);
-                                                        return `${label}: ${value} (${pct}%)`;
+                {!filters.age?.length && (
+                    <Card title="Edad" scrollY maxBodyHeight={600} minHeight={400}>
+                        {age && (() => {
+                            const rows = buildPercentRows(age.labels, age.values);
+                            return (
+                                <div style={{ width: "100%", maxWidth: 420, minHeight: 200, maxHeight: 200, margin: "0 auto" }}>
+                                    <Doughnut
+                                        data={{
+                                            labels: age.labels,
+                                            datasets: [{
+                                                data: age.values,
+                                                backgroundColor: colorsFromMap(age.labels, CHART_COLORS.age),
+                                                borderWidth: 0,
+                                            }],
+                                        }}
+                                        options={{
+                                            cutout: "70%",
+                                            plugins: {
+                                                legend: { display: false },
+                                                tooltip: {
+                                                    callbacks: {
+                                                        label: (ctx) => {
+                                                            const label = ctx.label || "";
+                                                            const value = Number(ctx.parsed || 0);
+                                                            const total = (ctx.dataset.data as number[]).reduce((a, b) => a + Number(b || 0), 0) || 1;
+                                                            const pct = ((value / total) * 100).toFixed(1);
+                                                            return `${label}: ${value} (${pct}%)`;
+                                                        },
                                                     },
                                                 },
                                             },
-                                        },
-                                    }}
-                                />
+                                        }}
+                                    />
 
-                                <div style={{ marginTop: 12, fontSize: 13 }}>
-                                    {rows.map((r) => (
-                                        <div
-                                            key={r.label}
-                                            style={{
-                                                display: "flex",
-                                                justifyContent: "space-between",
-                                                gap: 12,
-                                                padding: "6px 0",
-                                                borderBottom: "1px solid rgba(0,0,0,0.06)",
-                                            }}
-                                        >
-                                            <span>{r.label}</span>
-                                            <span style={{ opacity: 0.85 }}>{r.value} · {r.pct.toFixed(1)}%</span>
-                                        </div>
-                                    ))}
+                                    <div style={{ marginTop: 12, fontSize: 13 }}>
+                                        {rows.map((r) => (
+                                            <div
+                                                key={r.label}
+                                                style={{
+                                                    display: "flex",
+                                                    justifyContent: "space-between",
+                                                    gap: 12,
+                                                    padding: "6px 0",
+                                                    borderBottom: "1px solid rgba(0,0,0,0.06)",
+                                                }}
+                                            >
+                                                <span>{r.label}</span>
+                                                <span style={{ opacity: 0.85 }}>{r.value} · {r.pct.toFixed(1)}%</span>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
-                        );
-                    })()}
-                </Card>}
+                            );
+                        })()}
+                    </Card>
+                )}
 
-                {!filters.gender && <Card title="Género" scrollY maxBodyHeight={600} minHeight={400}>
-                    {gender && (() => {
-                        const rows = buildPercentRows(gender.labels, gender.values);
-
-                        return (
-                            <div style={{ width: "100%", maxWidth: 420, minHeight: 200, maxHeight: 200, margin: "0 auto" }}>
-                                <Doughnut
-                                    data={{
-                                        labels: gender.labels,
-                                        datasets: [{
-                                            data: gender.values,
-                                            backgroundColor: colorsFromMap(gender.labels, CHART_COLORS.gender),
-                                            borderWidth: 0,
-                                        }],
-                                    }}
-                                    options={{
-                                        cutout: "70%",
-                                        plugins: {
-                                            legend: { display: false },
-                                            tooltip: {
-                                                callbacks: {
-                                                    label: (ctx) => {
-                                                        const label = ctx.label || "";
-                                                        const value = Number(ctx.parsed || 0);
-                                                        const total = (ctx.dataset.data as number[]).reduce((a, b) => a + Number(b || 0), 0) || 1;
-                                                        const pct = ((value / total) * 100).toFixed(1);
-                                                        return `${label}: ${value} (${pct}%)`;
+                {!filters.gender?.length && (
+                    <Card title="Género" scrollY maxBodyHeight={600} minHeight={400}>
+                        {gender && (() => {
+                            const rows = buildPercentRows(gender.labels, gender.values);
+                            return (
+                                <div style={{ width: "100%", maxWidth: 420, minHeight: 200, maxHeight: 200, margin: "0 auto" }}>
+                                    <Doughnut
+                                        data={{
+                                            labels: gender.labels,
+                                            datasets: [{
+                                                data: gender.values,
+                                                backgroundColor: colorsFromMap(gender.labels, CHART_COLORS.gender),
+                                                borderWidth: 0,
+                                            }],
+                                        }}
+                                        options={{
+                                            cutout: "70%",
+                                            plugins: {
+                                                legend: { display: false },
+                                                tooltip: {
+                                                    callbacks: {
+                                                        label: (ctx) => {
+                                                            const label = ctx.label || "";
+                                                            const value = Number(ctx.parsed || 0);
+                                                            const total = (ctx.dataset.data as number[]).reduce((a, b) => a + Number(b || 0), 0) || 1;
+                                                            const pct = ((value / total) * 100).toFixed(1);
+                                                            return `${label}: ${value} (${pct}%)`;
+                                                        },
                                                     },
                                                 },
                                             },
-                                        },
-                                    }}
-                                />
+                                        }}
+                                    />
 
-                                <div style={{ marginTop: 12, fontSize: 13 }}>
-                                    {rows.map((r) => (
-                                        <div
-                                            key={r.label}
-                                            style={{
-                                                display: "flex",
-                                                justifyContent: "space-between",
-                                                gap: 12,
-                                                padding: "6px 0",
-                                                borderBottom: "1px solid rgba(0,0,0,0.06)",
-                                            }}
-                                        >
-                                            <span>{r.label}</span>
-                                            <span style={{ opacity: 0.85 }}>{r.value} · {r.pct.toFixed(1)}%</span>
-                                        </div>
-                                    ))}
+                                    <div style={{ marginTop: 12, fontSize: 13 }}>
+                                        {rows.map((r) => (
+                                            <div
+                                                key={r.label}
+                                                style={{
+                                                    display: "flex",
+                                                    justifyContent: "space-between",
+                                                    gap: 12,
+                                                    padding: "6px 0",
+                                                    borderBottom: "1px solid rgba(0,0,0,0.06)",
+                                                }}
+                                            >
+                                                <span>{r.label}</span>
+                                                <span style={{ opacity: 0.85 }}>{r.value} · {r.pct.toFixed(1)}%</span>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
-                        );
-                    })()}
-                </Card>}
+                            );
+                        })()}
+                    </Card>
+                )}
             </div>
+
             <br />
+
             <div className="dash-grid-2" style={{ marginTop: 16 }}>
                 <div>
                     <div className="dash-card-title">Comparación de opciones (A vs B) por segmento</div>
@@ -352,11 +390,11 @@ export default function DarkRoomDashboard({
                                     scales: {
                                         x: { beginAtZero: true, stacked: true, ticks: { precision: 0 } },
                                         y: {
-                                            stacked: true, ticks: {
+                                            stacked: true,
+                                            ticks: {
                                                 autoSkip: false,
                                                 callback: function (value) {
-                                                    // "value" is tick index for category axis
-                                                    // @ts-ignore ChartJS provides getLabelForValue on category scale
+                                                    // @ts-ignore
                                                     const label = (this as any).getLabelForValue(value);
                                                     const total = rowTotals[label] ?? 0;
                                                     return `${label} (${total})`;

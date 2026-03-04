@@ -59,7 +59,6 @@ export default function Radio() {
         const list = filtersApi?.topics ?? [];
         return [
             { label: "Todos", value: "" },
-            { label: "Sin tema", value: "null" },
             ...list.map((t) => ({ label: t.topic_name, value: String(t.id) })),
         ];
     }, [filtersApi]);

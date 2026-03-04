@@ -1,4 +1,3 @@
-// components/murals/MuralsPhrasesTable.tsx
 'use client';
 
 import React from "react";
@@ -27,7 +26,7 @@ type Row = {
 export default function MuralsPhrasesTable({
     filters,
 }: {
-    filters: { regionId: string; eventId: string; activityId: string };
+    filters: { regionId: string[]; eventId: string[]; activityId: string[] };
 }) {
     const router = useRouter();
     const [compareOpen, setCompareOpen] = React.useState(false);
@@ -40,9 +39,11 @@ export default function MuralsPhrasesTable({
 
     const buildUrl = React.useCallback(() => {
         const params = new URLSearchParams();
-        if (filters.regionId) params.set("regionId", filters.regionId);
-        if (filters.eventId) params.set("eventId", filters.eventId);
-        if (filters.activityId) params.set("activityId", filters.activityId);
+
+        (filters.regionId ?? []).forEach((v) => params.append("regionId", v));
+        (filters.eventId ?? []).forEach((v) => params.append("eventId", v));
+        (filters.activityId ?? []).forEach((v) => params.append("activityId", v));
+
         params.set("page", String(page));
         params.set("pageSize", String(pageSize));
         return `/api/murals/phrases/list?${params.toString()}`;
@@ -95,7 +96,6 @@ export default function MuralsPhrasesTable({
                     <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 900 }}>
                         <thead>
                             <tr style={{ textAlign: "left", borderBottom: "1px solid #eee" }}>
-                                {/* <th style={{ padding: 12 }}>Fecha</th> */}
                                 <th style={{ padding: 12 }}>Región</th>
                                 <th style={{ padding: 12 }}>Actividad</th>
                                 <th style={{ padding: 12 }}>Frase</th>
@@ -105,17 +105,13 @@ export default function MuralsPhrasesTable({
                         <tbody>
                             {rows.map((r, idx) => (
                                 <tr key={idx} style={{ borderBottom: "1px solid #000" }}>
-                                    {/* <td style={{ padding: 12, whiteSpace: "nowrap" }}>
-                                        {String(r.created_at).slice(0, 10)}
-                                    </td> */}
-
                                     <td style={{ padding: 12, whiteSpace: "nowrap" }}>
                                         {get_substring(r.region_name?.toUpperCase() || "", 3, "") || "Sin región"}
                                     </td>
 
                                     <td style={{ padding: 12, whiteSpace: "nowrap" }}>
                                         <div style={{ fontWeight: 600 }}>
-                                            {(r.name_event?.split(" - ")[0] ?? "Sin actividad")}
+                                            {r.name_event?.split(" - ")[0] ?? "Sin actividad"}
                                         </div>
 
                                         <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>
@@ -144,7 +140,7 @@ export default function MuralsPhrasesTable({
 
                             {rows.length === 0 ? (
                                 <tr>
-                                    <td colSpan={4} style={{ padding: 16, color: "#777" }}>
+                                    <td colSpan={3} style={{ padding: 16, color: "#777" }}>
                                         No hay resultados con los filtros seleccionados.
                                     </td>
                                 </tr>

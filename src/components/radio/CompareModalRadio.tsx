@@ -57,7 +57,6 @@ export default function CompareModalRadio({
         dimension === "programId"
             ? (filtersApi?.programs ?? []).map((p) => ({ label: p.name_program, value: String(p.id) }))
             : [
-                { label: "Sin tema", value: "null" },
                 ...(filtersApi?.topics ?? []).map((t) => ({ label: t.topic_name, value: String(t.id) })),
             ];
 

@@ -7,7 +7,7 @@ type PivotRow = {
   questionText: string;
   optionId: number;
   optionText: string;
-  cells: Record<string, Record<string, PivotCell>>; // cells[gender][age]
+  cells: Record<string, Record<string, PivotCell>>;
   total: number;
   totalPct: number;
 };
@@ -21,26 +21,28 @@ type TwoOptMeta = {
 
 type TwoOptSegRow = { label: string; a: number; b: number };
 
+const toIntArray = (arr: string[]) =>
+  (arr ?? [])
+    .map((x) => String(x).trim())
+    .filter((x) => /^\d+$/.test(x))
+    .map((x) => Number(x));
+
+const toTextArray = (arr: string[]) =>
+  (arr ?? []).map((x) => String(x ?? "").trim()).filter(Boolean);
+
 export const GET = async (request: Request) => {
   try {
     const { searchParams } = new URL(request.url);
 
-    const regionId = searchParams.get("regionId");
-    const questionId = searchParams.get("questionId");
-    const optionId = searchParams.get("optionId");
-    const age = searchParams.get("age");
-    const gender = searchParams.get("gender");
-
-    const regionIdInt = regionId && /^\d+$/.test(regionId) ? Number(regionId) : null;
-    const questionIdInt = questionId && /^\d+$/.test(questionId) ? Number(questionId) : null;
-    const optionIdInt = optionId && /^\d+$/.test(optionId) ? Number(optionId) : null;
-
-    const ageStr = age ? String(age).trim() : "";
-    const genderStr = gender ? String(gender).trim() : "";
+    // multi-values
+    const regionIds = toIntArray(searchParams.getAll("regionId"));
+    const questionIds = toIntArray(searchParams.getAll("questionId"));
+    const optionIds = toIntArray(searchParams.getAll("optionId"));
+    const ages = toTextArray(searchParams.getAll("age"));
+    const genders = toTextArray(searchParams.getAll("gender"));
 
     // -----------------------------
     // 1) Main breakdowns
-    //   NOTE: normalize gender here too so charts group properly
     // -----------------------------
     const sqlBreakdowns = `
       WITH base AS (
@@ -59,26 +61,26 @@ export const GET = async (request: Request) => {
             ) THEN 'Otro'
             WHEN COALESCE(NULLIF(btrim(r.gender), ''), 'No especifica') = 'No especifica' THEN 'No especifica'
             ELSE COALESCE(NULLIF(btrim(r.gender), ''), 'No especifica')
-          END AS gender
+          END AS gender_norm
         FROM dark_room_responses r
         WHERE
-          ($1::int IS NULL OR r.id_region = $1::int)
-          AND ($2::int IS NULL OR r.question_id = $2::int)
-          AND ($3::int IS NULL OR r.option_id = $3::int)
-          AND ($4::text = '' OR COALESCE(NULLIF(btrim(r.age_group), ''), 'No especifica') = $4::text)
-          AND ($5::text = '' OR (
-              CASE
-                WHEN lower(COALESCE(NULLIF(btrim(r.gender), ''), 'No especifica')) IN ('h','masculino','male','m') THEN 'Masculino'
-                WHEN lower(COALESCE(NULLIF(btrim(r.gender), ''), 'No especifica')) IN ('f','femenino','female') THEN 'Femenino'
-                WHEN lower(COALESCE(NULLIF(btrim(r.gender), ''), 'No especifica')) IN (
-                  'o','otro','other',
-                  'prefiero no indicar','prefiero no decir','prefiero no responder','prefiero no especificar',
-                  'no indica','no indicar'
-                ) THEN 'Otro'
-                WHEN COALESCE(NULLIF(btrim(r.gender), ''), 'No especifica') = 'No especifica' THEN 'No especifica'
-                ELSE COALESCE(NULLIF(btrim(r.gender), ''), 'No especifica')
-              END
-          ) = $5::text)
+          (cardinality($1::int[]) = 0 OR r.id_region = ANY($1::int[]))
+          AND (cardinality($2::int[]) = 0 OR r.question_id = ANY($2::int[]))
+          AND (cardinality($3::int[]) = 0 OR r.option_id = ANY($3::int[]))
+          AND (cardinality($4::text[]) = 0 OR COALESCE(NULLIF(btrim(r.age_group), ''), 'No especifica') = ANY($4::text[]))
+          AND (cardinality($5::text[]) = 0 OR (
+            CASE
+              WHEN lower(COALESCE(NULLIF(btrim(r.gender), ''), 'No especifica')) IN ('h','masculino','male','m') THEN 'Masculino'
+              WHEN lower(COALESCE(NULLIF(btrim(r.gender), ''), 'No especifica')) IN ('f','femenino','female') THEN 'Femenino'
+              WHEN lower(COALESCE(NULLIF(btrim(r.gender), ''), 'No especifica')) IN (
+                'o','otro','other',
+                'prefiero no indicar','prefiero no decir','prefiero no responder','prefiero no especificar',
+                'no indica','no indicar'
+              ) THEN 'Otro'
+              WHEN COALESCE(NULLIF(btrim(r.gender), ''), 'No especifica') = 'No especifica' THEN 'No especifica'
+              ELSE COALESCE(NULLIF(btrim(r.gender), ''), 'No especifica')
+            END
+          ) = ANY($5::text[]))
       )
       SELECT
         (SELECT COUNT(*)::int FROM base) AS total_responses,
@@ -94,9 +96,9 @@ export const GET = async (request: Request) => {
 
         (SELECT COALESCE(jsonb_object_agg(k, v), '{}'::jsonb)
          FROM (
-           SELECT gender AS k, COUNT(*)::int AS v
+           SELECT gender_norm AS k, COUNT(*)::int AS v
            FROM base
-           GROUP BY gender
+           GROUP BY gender_norm
            ORDER BY COUNT(*) DESC
          ) t
         ) AS gender_breakdown,
@@ -123,46 +125,45 @@ export const GET = async (request: Request) => {
       ;
     `;
 
-    const res1 = await query(sqlBreakdowns, [regionIdInt, questionIdInt, optionIdInt, ageStr, genderStr]);
+    const res1 = await query(sqlBreakdowns, [regionIds, questionIds, optionIds, ages, genders]);
     const row1 = res1.rows?.[0];
     const totalResponses: number = row1?.total_responses ?? 0;
 
     // -----------------------------
     // 2) Pivot data
-    //   NOTE: normalize gender_code here too (merge "Prefiero no indicar" => "Otro")
     // -----------------------------
     const sqlPivot = `
       WITH base AS (
         SELECT
           r.question_id,
           r.option_id,
-          COALESCE(NULLIF(btrim(r.age_group), ''), 'No especifica') AS age_group_raw,
+          COALESCE(NULLIF(btrim(r.age_group), ''), 'No especifica') AS age_group,
           COALESCE(NULLIF(btrim(r.gender), ''), 'No especifica') AS gender_raw
         FROM dark_room_responses r
         WHERE
-          ($1::int IS NULL OR r.id_region = $1::int)
-          AND ($2::int IS NULL OR r.question_id = $2::int)
-          AND ($3::int IS NULL OR r.option_id = $3::int)
-          AND ($4::text = '' OR COALESCE(NULLIF(btrim(r.age_group), ''), 'No especifica') = $4::text)
-          AND ($5::text = '' OR (
-              CASE
-                WHEN lower(COALESCE(NULLIF(btrim(r.gender), ''), 'No especifica')) IN ('h','masculino','male','m') THEN 'Masculino'
-                WHEN lower(COALESCE(NULLIF(btrim(r.gender), ''), 'No especifica')) IN ('f','femenino','female') THEN 'Femenino'
-                WHEN lower(COALESCE(NULLIF(btrim(r.gender), ''), 'No especifica')) IN (
-                  'o','otro','other',
-                  'prefiero no indicar','prefiero no decir','prefiero no responder','prefiero no especificar',
-                  'no indica','no indicar'
-                ) THEN 'Otro'
-                WHEN COALESCE(NULLIF(btrim(r.gender), ''), 'No especifica') = 'No especifica' THEN 'No especifica'
-                ELSE COALESCE(NULLIF(btrim(r.gender), ''), 'No especifica')
-              END
-          ) = $5::text)
+          (cardinality($1::int[]) = 0 OR r.id_region = ANY($1::int[]))
+          AND (cardinality($2::int[]) = 0 OR r.question_id = ANY($2::int[]))
+          AND (cardinality($3::int[]) = 0 OR r.option_id = ANY($3::int[]))
+          AND (cardinality($4::text[]) = 0 OR COALESCE(NULLIF(btrim(r.age_group), ''), 'No especifica') = ANY($4::text[]))
+          AND (cardinality($5::text[]) = 0 OR (
+            CASE
+              WHEN lower(COALESCE(NULLIF(btrim(r.gender), ''), 'No especifica')) IN ('h','masculino','male','m') THEN 'Masculino'
+              WHEN lower(COALESCE(NULLIF(btrim(r.gender), ''), 'No especifica')) IN ('f','femenino','female') THEN 'Femenino'
+              WHEN lower(COALESCE(NULLIF(btrim(r.gender), ''), 'No especifica')) IN (
+                'o','otro','other',
+                'prefiero no indicar','prefiero no decir','prefiero no responder','prefiero no especificar',
+                'no indica','no indicar'
+              ) THEN 'Otro'
+              WHEN COALESCE(NULLIF(btrim(r.gender), ''), 'No especifica') = 'No especifica' THEN 'No especifica'
+              ELSE COALESCE(NULLIF(btrim(r.gender), ''), 'No especifica')
+            END
+          ) = ANY($5::text[]))
       ),
       norm AS (
         SELECT
           b.question_id,
           b.option_id,
-          b.age_group_raw AS age_group,
+          b.age_group,
           CASE
             WHEN lower(b.gender_raw) IN ('h','masculino','male','m') THEN 'Masculino'
             WHEN lower(b.gender_raw) IN ('f','femenino','female') THEN 'Femenino'
@@ -198,7 +199,7 @@ export const GET = async (request: Request) => {
         n.age_group ASC
     `;
 
-    const res2 = await query(sqlPivot, [regionIdInt, questionIdInt, optionIdInt, ageStr, genderStr]);
+    const res2 = await query(sqlPivot, [regionIds, questionIds, optionIds, ages, genders]);
 
     const pivotFlat: {
       question_id: number;
@@ -212,7 +213,6 @@ export const GET = async (request: Request) => {
 
     const genderSet = new Set<string>();
     const ageSet = new Set<string>();
-
     for (const r of pivotFlat) {
       genderSet.add(r.gender_code);
       ageSet.add(r.age_group);
@@ -221,17 +221,17 @@ export const GET = async (request: Request) => {
     const preferredGenders = ["Masculino", "Femenino", "Otro", "No especifica"];
     const preferredAges = ["15-", "16-29", "30-45", "46+", "No especifica"];
 
-    const genders = preferredGenders
+    const gendersOut = preferredGenders
       .filter((g) => genderSet.has(g))
       .concat([...genderSet].filter((g) => !preferredGenders.includes(g)));
 
-    const ageGroups = preferredAges
+    const ageGroupsOut = preferredAges
       .filter((a) => ageSet.has(a))
       .concat([...ageSet].filter((a) => !preferredAges.includes(a)));
 
     const colTotals: Record<string, Record<string, number>> = {};
-    for (const g of genders) colTotals[g] = {};
-    for (const g of genders) for (const a of ageGroups) colTotals[g][a] = 0;
+    for (const g of gendersOut) colTotals[g] = {};
+    for (const g of gendersOut) for (const a of ageGroupsOut) colTotals[g][a] = 0;
 
     for (const r of pivotFlat) {
       if (!colTotals[r.gender_code]) colTotals[r.gender_code] = {};
@@ -295,12 +295,15 @@ export const GET = async (request: Request) => {
 
     // -----------------------------
     // 3) Two-options segmentation (A vs B)
-    // Only when questionId is selected and optionId NOT selected.
+    // Only when EXACTLY ONE question is selected and NO option is selected.
     // -----------------------------
     let twoOptionsMeta: TwoOptMeta | null = null;
     let twoOptionsSegments: Record<string, TwoOptSegRow[]> | null = null;
 
-    if (questionIdInt && !optionIdInt) {
+    const singleQuestionId = questionIds.length === 1 ? questionIds[0] : null;
+    const hasAnyOptionFilter = optionIds.length > 0;
+
+    if (singleQuestionId && !hasAnyOptionFilter) {
       const optRes = await query(
         `
         SELECT id, option_text
@@ -308,7 +311,7 @@ export const GET = async (request: Request) => {
         WHERE question_id = $1
         ORDER BY id ASC
         `,
-        [questionIdInt]
+        [singleQuestionId]
       );
 
       const opts = optRes.rows ?? [];
@@ -346,9 +349,9 @@ export const GET = async (request: Request) => {
             LEFT JOIN regiones reg ON reg.id = r.id_region
             WHERE r.question_id = $1
               AND r.option_id IN ($2, $3)
-              AND ($4::int IS NULL OR r.id_region = $4::int)
-              AND ($5::text = '' OR COALESCE(NULLIF(btrim(r.age_group),''),'No especifica') = $5::text)
-              AND ($6::text = '' OR (
+              AND (cardinality($4::int[]) = 0 OR r.id_region = ANY($4::int[]))
+              AND (cardinality($5::text[]) = 0 OR COALESCE(NULLIF(btrim(r.age_group),''),'No especifica') = ANY($5::text[]))
+              AND (cardinality($6::text[]) = 0 OR (
                 CASE
                   WHEN lower(COALESCE(NULLIF(btrim(r.gender), ''), 'No especifica')) IN ('h','masculino','male','m') THEN 'Masculino'
                   WHEN lower(COALESCE(NULLIF(btrim(r.gender), ''), 'No especifica')) IN ('f','femenino','female') THEN 'Femenino'
@@ -360,7 +363,7 @@ export const GET = async (request: Request) => {
                   WHEN COALESCE(NULLIF(btrim(r.gender), ''), 'No especifica') = 'No especifica' THEN 'No especifica'
                   ELSE COALESCE(NULLIF(btrim(r.gender), ''), 'No especifica')
                 END
-              ) = $6::text)
+              ) = ANY($6::text[]))
           )
           SELECT
             gender,
@@ -371,7 +374,7 @@ export const GET = async (request: Request) => {
           FROM base
           GROUP BY gender, age_group, region
           `,
-          [questionIdInt, twoOptionsMeta.aOptionId, twoOptionsMeta.bOptionId, regionIdInt, ageStr, genderStr]
+          [singleQuestionId, twoOptionsMeta.aOptionId, twoOptionsMeta.bOptionId, regionIds, ages, genders]
         );
 
         const cubeRows = segRes.rows ?? [];
@@ -412,8 +415,8 @@ export const GET = async (request: Request) => {
           byQuestion: row1?.responses_by_question ?? {},
           byOption: row1?.responses_by_option ?? {},
           pivot: {
-            genders,
-            ageGroups,
+            genders: gendersOut,
+            ageGroups: ageGroupsOut,
             rows: pivotRows,
             totals: {
               colTotals,
