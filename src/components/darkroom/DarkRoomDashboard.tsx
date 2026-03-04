@@ -382,7 +382,8 @@ export default function DarkRoomDashboard({
                                             callbacks: {
                                                 label: (ctx) => {
                                                     const v = Number((ctx.parsed as any)?.x ?? 0);
-                                                    const pct = ((v / 100) * 100).toFixed(1);
+                                                    const total = rowTotals[ctx.label as string] ?? 0;
+                                                    const pct = ((v / total) * 100).toFixed(1);
                                                     return ` ${ctx.dataset.label}: ${v} - ${pct}%`;
                                                 },
                                             },
