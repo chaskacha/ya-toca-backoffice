@@ -3,6 +3,8 @@
 import React from "react";
 import "./styles.css";
 import type { VideosFiltersState } from "@/app/videos/page";
+import { useRouter } from "next/navigation";
+import CompareModalVideos, { CompareModalValueVideos } from "./compare/ComparisonModal";
 
 type Row = {
   created_at: string;
@@ -15,6 +17,11 @@ type Row = {
   start_sec?: number | null;
 };
 
+type FiltersApi = {
+  regions: { id: number; name: string }[];
+  events: { id: number; name_event: string; idregion: number }[];
+};
+
 export default function VideosPhrasesTable({
   filters,
   loadingFilters,
@@ -22,12 +29,32 @@ export default function VideosPhrasesTable({
   filters: VideosFiltersState;
   loadingFilters?: boolean;
 }) {
+  const router = useRouter();
+
   const [loading, setLoading] = React.useState(true);
   const [rows, setRows] = React.useState<Row[]>([]);
   const [total, setTotal] = React.useState(0);
 
   const [page, setPage] = React.useState(1);
   const pageSize = 100;
+
+  const [compareOpen, setCompareOpen] = React.useState(false);
+  const [filtersApi, setFiltersApi] = React.useState<FiltersApi | null>(null);
+
+  // Load filters api (events list for compare modal)
+  React.useEffect(() => {
+    const run = async () => {
+      try {
+        const res = await fetch("/api/videos/phrases/filters");
+        const json = (await res.json()) as FiltersApi;
+        setFiltersApi(json);
+      } catch (e) {
+        console.error(e);
+        setFiltersApi(null);
+      }
+    };
+    run();
+  }, []);
 
   const buildUrl = React.useCallback(() => {
     const params = new URLSearchParams();
@@ -68,6 +95,43 @@ export default function VideosPhrasesTable({
       <div className="fs18 fw700">Frases extraídas (videos) - ¿Qué harías si fueras presidente?</div>
       <div style={{ height: 10 }} />
 
+      {/* Actions */}
+      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+        <button
+          onClick={() => {
+            const params = new URLSearchParams();
+            if (filters.regionId) params.set("regionId", filters.regionId);
+            if (filters.eventId) params.set("eventId", filters.eventId);
+            router.push(`/videos/analyze?${params.toString()}`);
+          }}
+          style={{
+            height: 40,
+            padding: "0 12px",
+            borderRadius: 8,
+            background:
+              "linear-gradient(90deg, hsla(346, 100%, 83%, 1) 0%, hsla(238, 70%, 48%, 1) 100%)",
+            color: "#fff",
+            border: "none",
+          }}
+        >
+          Analizar
+        </button>
+
+        <button
+          onClick={() => setCompareOpen(true)}
+          style={{
+            height: 40,
+            padding: "0 12px",
+            borderRadius: 8,
+            border: "1px solid #ddd",
+            background: "#000",
+            color: "#fff",
+          }}
+        >
+          Comparar
+        </button>
+      </div>
+
       <div style={{ height: 14 }} />
 
       {loadingFilters ? <div className="dash-loading">Cargando filtros...</div> : null}
@@ -89,10 +153,7 @@ export default function VideosPhrasesTable({
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1100 }}>
             <thead>
               <tr style={{ textAlign: "left", borderBottom: "1px solid #eee" }}>
-                {/* <th style={{ padding: 12 }}>Fecha</th> */}
                 <th style={{ padding: 12 }}>Región</th>
-                {/* <th style={{ padding: 12 }}>Evento</th> */}
-                {/* <th style={{ padding: 12 }}>Pregunta</th> */}
                 <th style={{ padding: 12 }}>Frase</th>
               </tr>
             </thead>
@@ -100,10 +161,7 @@ export default function VideosPhrasesTable({
             <tbody>
               {rows.map((r, idx) => (
                 <tr key={idx} style={{ borderBottom: "1px solid #000" }}>
-                  {/* <td style={{ padding: 12, whiteSpace: "nowrap" }}>{String(r.created_at).slice(0, 10)}</td> */}
                   <td style={{ padding: 12, whiteSpace: "nowrap" }}>{r.region_name}</td>
-                  {/* <td style={{ padding: 12, whiteSpace: "nowrap" }}>{r.name_event}</td> */}
-                  {/* <td style={{ padding: 12, whiteSpace: "nowrap" }}>{r.question || "Sin pregunta"}</td> */}
 
                   <td style={{ padding: 12, minWidth: 520, maxWidth: 720 }}>
                     <div style={{ whiteSpace: "normal", wordBreak: "break-word", overflowWrap: "anywhere", lineHeight: 1.35 }}>
@@ -161,6 +219,25 @@ export default function VideosPhrasesTable({
           </button>
         </div>
       </div>
+
+      <CompareModalVideos
+        open={compareOpen}
+        onClose={() => setCompareOpen(false)}
+        filtersApi={filtersApi}
+        onApply={(val: CompareModalValueVideos) => {
+          setCompareOpen(false);
+
+          const params = new URLSearchParams();
+          // Only compare events
+          params.set("aEventId", val.aEventId);
+          params.set("bEventId", val.bEventId);
+
+          // Keep current filters (optional): regionId could be used as an extra filter
+          if (filters.regionId) params.set("regionId", filters.regionId);
+
+          router.push(`/videos/compare?${params.toString()}`);
+        }}
+      />
     </div>
   );
 }

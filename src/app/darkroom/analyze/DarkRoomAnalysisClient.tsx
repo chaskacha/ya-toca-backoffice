@@ -4,10 +4,10 @@ import React from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Wrapper from "@/components/basic/wrapper";
 import SafeArea from "@/components/basic/safe-area";
-import RadioComparisonChat from "@/components/radio/RadioComparisonChat";
+import ComparisonChatDarkRoom from "@/components/darkroom/ComparisonChatDarkRoom";
 
 type AnalyzeGroup = {
-    label: string; // e.g., program name or topic name
+    label: string;
     count: number;
 
     dominant_themes?: string[];
@@ -23,7 +23,7 @@ type AnalyzeResult = {
     limitations?: string[];
 };
 
-export default function RadioAnalyzeClient() {
+export default function DarkRoomAnalysisClient() {
     const sp = useSearchParams();
     const router = useRouter();
 
@@ -31,15 +31,17 @@ export default function RadioAnalyzeClient() {
     const [error, setError] = React.useState<string | null>(null);
     const [data, setData] = React.useState<AnalyzeResult | null>(null);
 
-    const allowedKeys = ["programId", "topicId"] as const;
+    const multiKeys = ["questionId", "optionId", "age", "gender", "regionId"] as const;
 
     const buildAnalyzeUrl = React.useCallback(() => {
         const params = new URLSearchParams();
-        for (const k of allowedKeys) {
-            const v = sp.get(k);
-            if (v) params.set(k, v);
+        for (const k of multiKeys) {
+            const values = sp.getAll(k);
+            values.forEach((v) => {
+                if (v) params.append(k, v);
+            });
         }
-        return `/api/radio/analyze?${params.toString()}`;
+        return `/api/darkroom/analyze?${params.toString()}`;
     }, [sp.toString()]);
 
     React.useEffect(() => {
@@ -69,17 +71,17 @@ export default function RadioAnalyzeClient() {
     }, [buildAnalyzeUrl]);
 
     const appliedFiltersLabel = React.useMemo(() => {
-        const pairs: string[] = [];
-        for (const k of allowedKeys) {
-            const v = sp.get(k);
-            if (v) pairs.push(`${k}=${v}`);
+        const parts: string[] = [];
+        for (const k of multiKeys) {
+            const values = sp.getAll(k);
+            if (values.length) parts.push(`${k}=${values.join(",")}`);
         }
-        return pairs.length ? pairs.join(" · ") : "Sin filtros (global)";
+        return parts.length ? parts.join(" · ") : "Sin filtros (global)";
     }, [sp.toString()]);
 
     return (
         <Wrapper>
-            <div className="admin-cabildos" style={{ maxHeight: "100vh", overflow: "auto" }}>
+            <div className="admin-darkroom" style={{ maxHeight: "100vh", overflow: "auto" }}>
                 <SafeArea mv={32}>
                     <>
                         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
@@ -96,7 +98,7 @@ export default function RadioAnalyzeClient() {
                                 ← Volver
                             </button>
 
-                            <div className="fs18 fw700">Análisis (Radio)</div>
+                            <div className="fs18 fw700">Análisis (DarkRoom)</div>
                         </div>
 
                         <div style={{ height: 8 }} />
@@ -117,7 +119,7 @@ export default function RadioAnalyzeClient() {
                         {data ? (
                             <>
                                 <AnalysisView data={data} />
-                                <RadioComparisonChat basis={data} mode="analyze" />
+                                <ComparisonChatDarkRoom basis={data} mode="analyze" />
                             </>
                         ) : null}
                     </>

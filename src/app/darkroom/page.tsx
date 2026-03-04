@@ -1,6 +1,7 @@
 'use client';
 
 import React from "react";
+import { useRouter } from "next/navigation";
 import Wrapper from "@/components/basic/wrapper";
 import SafeArea from "@/components/basic/safe-area";
 import "./styles.css";
@@ -32,6 +33,8 @@ const DEFAULT_FILTERS: DarkRoomFiltersState = {
 };
 
 export default function DarkRoom() {
+    const router = useRouter();
+
     const [filtersApi, setFiltersApi] = React.useState<FiltersApi | null>(null);
     const [loadingFilters, setLoadingFilters] = React.useState(true);
     const [filters, setFilters] = React.useState<DarkRoomFiltersState>(DEFAULT_FILTERS);
@@ -93,6 +96,19 @@ export default function DarkRoom() {
         return list.map((r) => ({ label: r.name, value: String(r.id) }));
     }, [filtersApi]);
 
+    const goAnalyze = React.useCallback(() => {
+        const params = new URLSearchParams();
+
+        // multi values
+        filters.questionId.forEach((x) => params.append("questionId", x));
+        filters.optionId.forEach((x) => params.append("optionId", x));
+        filters.age.forEach((x) => params.append("age", x));
+        filters.gender.forEach((x) => params.append("gender", x));
+        filters.regionId.forEach((x) => params.append("regionId", x));
+
+        router.push(`/darkroom/analyze?${params.toString()}`);
+    }, [filters, router]);
+
     return (
         <Wrapper>
             <div className="admin-darkroom">
@@ -145,6 +161,23 @@ export default function DarkRoom() {
                                 options={regionOptions}
                                 placeholder="Todas"
                             />
+
+                            <button
+                                onClick={goAnalyze}
+                                style={{
+                                    height: 40,
+                                    padding: "0 12px",
+                                    borderRadius: 8,
+                                    background:
+                                        "linear-gradient(90deg, hsla(346, 100%, 83%, 1) 0%, hsla(238, 70%, 48%, 1) 100%)",
+                                    filter:
+                                        "progid: DXImageTransform.Microsoft.gradient( startColorstr=\"#FFA8BD\", endColorstr=\"#242ACF\", GradientType=1 )",
+                                    color: "#fff",
+                                    border: "none",
+                                }}
+                            >
+                                Analizar
+                            </button>
 
                             <button
                                 onClick={() => setFilters(DEFAULT_FILTERS)}

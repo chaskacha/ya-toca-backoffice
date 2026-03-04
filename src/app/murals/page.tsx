@@ -199,7 +199,7 @@ export default function Murals() {
 
                         <MuralsDashboard filters={filters} />
                         <br />
-                        <MuralsPhrasesTable filters={filters} />
+                        <MuralsPhrasesTable filtersApi={filtersApi} filters={filters} />
                     </>
                 </SafeArea>
             </div>

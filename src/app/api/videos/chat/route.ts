@@ -9,27 +9,27 @@ type Body = {
 const SYSTEM_COMPARE = `
 Eres un analista. Responde en español.
 
-Contexto (Radio):
-- El contenido base proviene de transcripciones de episodios de radio (audio → texto).
-- NO es una encuesta representativa. Son fragmentos/transcripciones del programa.
+Contexto (Videos):
+- El contenido base proviene de frases extraídas de videos (segmentos).
+- NO es una encuesta representativa. Son fragmentos de entrevistas/discursos.
 
 Tu base de verdad es el JSON "basis" (resultado de comparación).
 Reglas:
 - Aquí SÍ hay dos cohortes (A y B). Usa lenguaje comparativo cuando corresponda.
 - No inventes datos que no estén en basis.
 - Si te preguntan "por qué", responde con hipótesis cautelosas, no con hechos.
-- Sustenta con evidencia cuando exista (por ejemplo, evidence/cohort*_examples).
-- Si falta evidencia directa en basis para responder, dilo explícitamente.
-- Si el usuario pide "fuentes", solo menciona fuentes metodológicas (transcripción, embeddings, análisis descriptivo, LLM) y aclara que no prueban realidad social local.
-- Mantén la respuesta clara y concisa.
+- Sustenta con evidencia cuando exista (por ejemplo, evidence / ejemplos).
+- Si falta evidencia directa en basis, dilo explícitamente.
+- Si piden "fuentes", solo menciona fuentes metodológicas (extracción, análisis descriptivo, LLM) y aclara que no prueban realidad social local.
+- Mantén tono neutral, claro y conciso.
 `;
 
 const SYSTEM_ANALYZE = `
 Eres un analista. Responde en español.
 
-Contexto (Radio):
-- El contenido base proviene de transcripciones de episodios de radio (audio → texto).
-- NO es una encuesta representativa. Son fragmentos/transcripciones del programa.
+Contexto (Videos):
+- El contenido base proviene de frases extraídas de videos (segmentos).
+- NO es una encuesta representativa. Son fragmentos de entrevistas/discursos.
 
 Tu base de verdad es el JSON "basis" (resultado de análisis).
 Reglas:
@@ -37,9 +37,9 @@ Reglas:
 - No inventes datos que no estén en basis.
 - Si te preguntan "por qué", responde con hipótesis cautelosas, no con hechos.
 - Sustenta con evidencia cuando exista (por ejemplo, evidence en groups).
-- Si falta evidencia directa en basis para responder, dilo explícitamente.
-- Si el usuario pide "fuentes", solo menciona fuentes metodológicas (transcripción, embeddings, análisis descriptivo, LLM) y aclara que no prueban realidad social local.
-- Mantén la respuesta clara y concisa.
+- Si falta evidencia directa en basis, dilo explícitamente.
+- Si piden "fuentes", solo menciona fuentes metodológicas (extracción, análisis descriptivo, LLM) y aclara que no prueban realidad social local.
+- Mantén tono neutral, claro y conciso.
 `;
 
 export const POST = async (req: Request) => {
@@ -51,21 +51,14 @@ export const POST = async (req: Request) => {
         const msgs = Array.isArray(body?.messages) ? body.messages : [];
 
         if (!basis) {
-            return new Response(JSON.stringify({ error: "Missing basis" }), {
-                status: 400,
-                headers: { "Content-Type": "application/json" },
-            });
+            return new Response(JSON.stringify({ error: "Missing basis" }), { status: 400 });
         }
 
         const lastUser = [...msgs].reverse().find((m) => m?.role === "user")?.content?.trim();
         if (!lastUser) {
-            return new Response(JSON.stringify({ error: "Missing user message" }), {
-                status: 400,
-                headers: { "Content-Type": "application/json" },
-            });
+            return new Response(JSON.stringify({ error: "Missing user message" }), { status: 400 });
         }
 
-        // keep last ~10 messages (ephemeral)
         const history = msgs.slice(-10);
         const system = mode === "analyze" ? SYSTEM_ANALYZE : SYSTEM_COMPARE;
 
@@ -90,9 +83,6 @@ export const POST = async (req: Request) => {
         });
     } catch (e) {
         console.error(e);
-        return new Response(JSON.stringify({ error: "Error interno del servidor" }), {
-            status: 500,
-            headers: { "Content-Type": "application/json" },
-        });
+        return new Response(JSON.stringify({ error: "Error interno del servidor" }), { status: 500 });
     }
 };

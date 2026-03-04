@@ -4,12 +4,11 @@ import React from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Wrapper from "@/components/basic/wrapper";
 import SafeArea from "@/components/basic/safe-area";
-import RadioComparisonChat from "@/components/radio/RadioComparisonChat";
+import MuralsComparisonChat from "@/components/murals/ComparisonChat";
 
 type AnalyzeGroup = {
-    label: string; // e.g., program name or topic name
+    label: string;
     count: number;
-
     dominant_themes?: string[];
     emotions?: string[];
     narratives?: string[];
@@ -23,7 +22,11 @@ type AnalyzeResult = {
     limitations?: string[];
 };
 
-export default function RadioAnalyzeClient() {
+function getAll(sp: URLSearchParams, key: string) {
+    return sp.getAll(key).map((x) => x.trim()).filter(Boolean);
+}
+
+export default function MuralsAnalyzeClient() {
     const sp = useSearchParams();
     const router = useRouter();
 
@@ -31,15 +34,14 @@ export default function RadioAnalyzeClient() {
     const [error, setError] = React.useState<string | null>(null);
     const [data, setData] = React.useState<AnalyzeResult | null>(null);
 
-    const allowedKeys = ["programId", "topicId"] as const;
-
     const buildAnalyzeUrl = React.useCallback(() => {
         const params = new URLSearchParams();
-        for (const k of allowedKeys) {
-            const v = sp.get(k);
-            if (v) params.set(k, v);
-        }
-        return `/api/radio/analyze?${params.toString()}`;
+
+        getAll(sp as any, "regionId").forEach((v) => params.append("regionId", v));
+        getAll(sp as any, "eventId").forEach((v) => params.append("eventId", v));
+        getAll(sp as any, "activityId").forEach((v) => params.append("activityId", v));
+
+        return `/api/murals/analyze?${params.toString()}`;
     }, [sp.toString()]);
 
     React.useEffect(() => {
@@ -69,55 +71,42 @@ export default function RadioAnalyzeClient() {
     }, [buildAnalyzeUrl]);
 
     const appliedFiltersLabel = React.useMemo(() => {
-        const pairs: string[] = [];
-        for (const k of allowedKeys) {
-            const v = sp.get(k);
-            if (v) pairs.push(`${k}=${v}`);
-        }
-        return pairs.length ? pairs.join(" · ") : "Sin filtros (global)";
+        const r = getAll(sp as any, "regionId");
+        const e = getAll(sp as any, "eventId");
+        const a = getAll(sp as any, "activityId");
+        const parts: string[] = [];
+        if (r.length) parts.push(`regionId=${r.join(",")}`);
+        if (e.length) parts.push(`eventId=${e.join(",")}`);
+        if (a.length) parts.push(`activityId=${a.join(",")}`);
+        return parts.length ? parts.join(" · ") : "Sin filtros (global)";
     }, [sp.toString()]);
 
     return (
         <Wrapper>
-            <div className="admin-cabildos" style={{ maxHeight: "100vh", overflow: "auto" }}>
+            <div className="admin-murals" style={{ maxHeight: "100vh", overflow: "auto" }}>
                 <SafeArea mv={32}>
                     <>
                         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
                             <button
                                 onClick={() => router.back()}
-                                style={{
-                                    height: 40,
-                                    padding: "0 12px",
-                                    borderRadius: 10,
-                                    border: "1px solid #ddd",
-                                    background: "#fff",
-                                }}
+                                style={{ height: 40, padding: "0 12px", borderRadius: 10, border: "1px solid #ddd", background: "#fff" }}
                             >
                                 ← Volver
                             </button>
 
-                            <div className="fs18 fw700">Análisis (Radio)</div>
+                            <div className="fs18 fw700">Análisis (Murales)</div>
                         </div>
 
                         <div style={{ height: 8 }} />
                         <div style={{ color: "#666" }}>{appliedFiltersLabel}</div>
 
-                        {loading ? (
-                            <div className="dash-loading" style={{ marginTop: 16 }}>
-                                Generando análisis...
-                            </div>
-                        ) : null}
-
-                        {error ? (
-                            <div className="dash-loading" style={{ marginTop: 16 }}>
-                                {error}
-                            </div>
-                        ) : null}
+                        {loading ? <div className="dash-loading" style={{ marginTop: 16 }}>Generando análisis...</div> : null}
+                        {error ? <div className="dash-loading" style={{ marginTop: 16 }}>{error}</div> : null}
 
                         {data ? (
                             <>
                                 <AnalysisView data={data} />
-                                <RadioComparisonChat basis={data} mode="analyze" />
+                                <MuralsComparisonChat basis={data} mode="analyze" />
                             </>
                         ) : null}
                     </>
@@ -128,10 +117,9 @@ export default function RadioAnalyzeClient() {
 }
 
 function AnalysisView({ data }: { data: AnalyzeResult }) {
-    const [showRaw, setShowRaw] = React.useState(false);
-
     const groups = Array.isArray(data?.groups) ? data.groups : [];
     const limitations = Array.isArray(data?.limitations) ? data.limitations : [];
+    const [showRaw, setShowRaw] = React.useState(false);
 
     return (
         <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 14 }}>
@@ -178,13 +166,7 @@ function AnalysisView({ data }: { data: AnalyzeResult }) {
             <div style={{ display: "flex", justifyContent: "flex-end" }}>
                 <button
                     onClick={() => setShowRaw((v) => !v)}
-                    style={{
-                        height: 36,
-                        padding: "0 10px",
-                        borderRadius: 10,
-                        border: "1px solid #ddd",
-                        background: "#fff",
-                    }}
+                    style={{ height: 36, padding: "0 10px", borderRadius: 10, border: "1px solid #ddd", background: "#fff" }}
                 >
                     {showRaw ? "Ocultar JSON" : "Ver JSON"}
                 </button>
@@ -208,11 +190,9 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
         </div>
     );
 }
-
 function Grid2({ children }: { children: React.ReactNode }) {
     return <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>{children}</div>;
 }
-
 function Block({ title, items, empty }: { title: string; items: any; empty: string }) {
     const arr = Array.isArray(items) ? items : [];
     return (
@@ -222,7 +202,6 @@ function Block({ title, items, empty }: { title: string; items: any; empty: stri
         </div>
     );
 }
-
 function Bullets({ items }: { items: any }) {
     const arr = Array.isArray(items) ? items : [];
     return (
@@ -233,7 +212,6 @@ function Bullets({ items }: { items: any }) {
         </ul>
     );
 }
-
 function Quotes({ title, quotes }: { title: string; quotes: any }) {
     const arr = Array.isArray(quotes) ? quotes : [];
     return (

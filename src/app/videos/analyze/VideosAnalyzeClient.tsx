@@ -4,10 +4,10 @@ import React from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Wrapper from "@/components/basic/wrapper";
 import SafeArea from "@/components/basic/safe-area";
-import RadioComparisonChat from "@/components/radio/RadioComparisonChat";
+import VideosChat from "@/components/videos/chat/VideosChat";
 
 type AnalyzeGroup = {
-    label: string; // e.g., program name or topic name
+    label: string;
     count: number;
 
     dominant_themes?: string[];
@@ -23,7 +23,7 @@ type AnalyzeResult = {
     limitations?: string[];
 };
 
-export default function RadioAnalyzeClient() {
+export default function VideosAnalyzeClient() {
     const sp = useSearchParams();
     const router = useRouter();
 
@@ -31,7 +31,7 @@ export default function RadioAnalyzeClient() {
     const [error, setError] = React.useState<string | null>(null);
     const [data, setData] = React.useState<AnalyzeResult | null>(null);
 
-    const allowedKeys = ["programId", "topicId"] as const;
+    const allowedKeys = ["regionId", "eventId"] as const;
 
     const buildAnalyzeUrl = React.useCallback(() => {
         const params = new URLSearchParams();
@@ -39,7 +39,7 @@ export default function RadioAnalyzeClient() {
             const v = sp.get(k);
             if (v) params.set(k, v);
         }
-        return `/api/radio/analyze?${params.toString()}`;
+        return `/api/videos/analyze?${params.toString()}`;
     }, [sp.toString()]);
 
     React.useEffect(() => {
@@ -96,7 +96,7 @@ export default function RadioAnalyzeClient() {
                                 ← Volver
                             </button>
 
-                            <div className="fs18 fw700">Análisis (Radio)</div>
+                            <div className="fs18 fw700">Análisis (Videos)</div>
                         </div>
 
                         <div style={{ height: 8 }} />
@@ -117,7 +117,7 @@ export default function RadioAnalyzeClient() {
                         {data ? (
                             <>
                                 <AnalysisView data={data} />
-                                <RadioComparisonChat basis={data} mode="analyze" />
+                                <VideosChat basis={data} mode="analyze" />
                             </>
                         ) : null}
                     </>

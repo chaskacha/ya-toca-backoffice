@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
 import React from "react";
 import { useRouter } from "next/navigation";
-import CompareModal from "./CompareModal";
+import CompareModal, { CompareModalValue } from "./CompareModal";
 import { get_substring } from "@/constants/functions";
 
 type Row = {
@@ -25,8 +25,10 @@ type Row = {
 
 export default function MuralsPhrasesTable({
     filters,
+    filtersApi,
 }: {
     filters: { regionId: string[]; eventId: string[]; activityId: string[] };
+    filtersApi: any;
 }) {
     const router = useRouter();
     const [compareOpen, setCompareOpen] = React.useState(false);
@@ -49,9 +51,7 @@ export default function MuralsPhrasesTable({
         return `/api/murals/phrases/list?${params.toString()}`;
     }, [filters.regionId, filters.eventId, filters.activityId, page]);
 
-    React.useEffect(() => {
-        setPage(1);
-    }, [filters.regionId, filters.eventId, filters.activityId]);
+    React.useEffect(() => setPage(1), [filters.regionId, filters.eventId, filters.activityId]);
 
     React.useEffect(() => {
         const run = async () => {
@@ -74,9 +74,54 @@ export default function MuralsPhrasesTable({
 
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
+    const pushAnalyze = () => {
+        const params = new URLSearchParams();
+        (filters.regionId ?? []).forEach((v) => params.append("regionId", v));
+        (filters.eventId ?? []).forEach((v) => params.append("eventId", v));
+        (filters.activityId ?? []).forEach((v) => params.append("activityId", v));
+        router.push(`/murals/analyze?${params.toString()}`);
+    };
+
     return (
         <div style={{ marginTop: 28 }}>
-            <div className="fs18 fw700">Frases extraídas</div>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+                <div className="fs18 fw700">Frases extraídas</div>
+
+                <div style={{ display: "flex", gap: 10 }}>
+                    <button
+                        onClick={pushAnalyze}
+                        style={{
+                            height: 40,
+                            padding: "0 12px",
+                            borderRadius: 8,
+                            background: "linear-gradient(90deg, hsla(346, 100%, 83%, 1) 0%, hsla(238, 70%, 48%, 1) 100%)",
+                            color: "#fff",
+                            border: "none",
+                            cursor: "pointer",
+                            fontWeight: 800,
+                        }}
+                    >
+                        Analizar
+                    </button>
+
+                    <button
+                        onClick={() => setCompareOpen(true)}
+                        style={{
+                            height: 40,
+                            padding: "0 12px",
+                            borderRadius: 8,
+                            border: "1px solid #ddd",
+                            background: "#000",
+                            color: "#fff",
+                            cursor: "pointer",
+                            fontWeight: 800,
+                        }}
+                    >
+                        Comparar
+                    </button>
+                </div>
+            </div>
+
             <div style={{ height: 10 }} />
 
             {loading ? (
@@ -110,30 +155,15 @@ export default function MuralsPhrasesTable({
                                     </td>
 
                                     <td style={{ padding: 12, whiteSpace: "nowrap" }}>
-                                        <div style={{ fontWeight: 600 }}>
-                                            {r.name_event?.split(" - ")[0] ?? "Sin actividad"}
-                                        </div>
-
-                                        <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>
-                                            {r.event_name || "Sin evento"}
-                                        </div>
+                                        <div style={{ fontWeight: 600 }}>{r.name_event?.split(" - ")[0] ?? "Sin actividad"}</div>
+                                        <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>{r.event_name || "Sin evento"}</div>
                                     </td>
 
                                     <td style={{ padding: 12, minWidth: 520, maxWidth: 720 }}>
-                                        <div
-                                            style={{
-                                                whiteSpace: "normal",
-                                                wordBreak: "break-word",
-                                                overflowWrap: "anywhere",
-                                                lineHeight: 1.35,
-                                            }}
-                                        >
+                                        <div style={{ whiteSpace: "normal", wordBreak: "break-word", overflowWrap: "anywhere", lineHeight: 1.35 }}>
                                             {r.phrase}
                                         </div>
-
-                                        <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>
-                                            {r.question || "Sin pregunta"}
-                                        </div>
+                                        <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>{r.question || "Sin pregunta"}</div>
                                     </td>
                                 </tr>
                             ))}
@@ -177,12 +207,12 @@ export default function MuralsPhrasesTable({
             <CompareModal
                 open={compareOpen}
                 onClose={() => setCompareOpen(false)}
-                filtersApi={null}
-                onApply={(val) => {
+                filtersApi={filtersApi}
+                onApply={(val: CompareModalValue) => {
                     setCompareOpen(false);
 
                     const params = new URLSearchParams();
-                    params.set("dimension", "eventId"); // unchanged for now
+                    params.set("dimension", val.dimension);
 
                     val.aValues.forEach((x) => params.append("a", x));
                     val.bValues.forEach((x) => params.append("b", x));

@@ -28,15 +28,6 @@ export default function MuralsComparisonClient() {
 
     const buildCompareUrl = React.useCallback(() => {
         const params = new URLSearchParams();
-
-        // ✅ adapt this to murals compare API query keys
-        // Recommended contract:
-        // - dimension=region|eventId|date_range|...
-        // - a=...
-        // - b=...
-        // But if you prefer old style a_region / b_region, keep the mapping here.
-        //
-        // Option A (simple): send dimension + a[] + b[]
         params.set("dimension", dimension);
         for (const v of a) params.append("a", v);
         for (const v of b) params.append("b", v);

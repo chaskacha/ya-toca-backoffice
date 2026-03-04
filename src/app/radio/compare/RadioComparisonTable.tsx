@@ -101,7 +101,7 @@ export default function RadioComparisonClient() {
                                     cohortB_label={cohortB_label}
                                     dimensionLabel={dimensionLabel}
                                 />
-                                <RadioComparisonChat basis={data} />
+                                <RadioComparisonChat basis={data} mode="compare" />
                             </>
                         ) : null}
                     </>

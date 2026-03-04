@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import type { DarkRoomCompareApiResponse } from "@/components/darkroom/DarkRoomComparisonTable";
 
 type ChatMsg = { role: "user" | "assistant"; content: string };
 type ChatSize = "min" | "dock" | "full";
@@ -26,31 +25,16 @@ function labelFor(s: ChatSize) {
 }
 
 function headerFor(mode: Mode) {
-    return mode === "compare" ? "Chat (DarkRoom · comparación)" : "Chat (DarkRoom · análisis)";
+    return mode === "compare" ? "Chat (Videos · comparación)" : "Chat (Videos · análisis)";
 }
 
 function starterFor(mode: Mode) {
     return mode === "compare"
-        ? "Listo. Pregúntame sobre esta comparación de DarkRoom. Responderé basándome solo en los números (totales, porcentajes y diferencias A−B) y señalaré limitaciones."
-        : "Listo. Pregúntame sobre este análisis de DarkRoom. Responderé basándome solo en el resultado del análisis (temas, hallazgos y evidencia) y señalaré limitaciones.";
+        ? "Listo. Pregúntame lo que quieras sobre la comparación de videos. Responderé basándome solo en el JSON de comparación."
+        : "Listo. Pregúntame lo que quieras sobre el análisis del grupo filtrado. Puedo resumir por grupos, citar evidencia y señalar limitaciones.";
 }
 
-/**
- * One component for BOTH:
- * - mode="compare" => basis = DarkRoomCompareApiResponse
- * - mode="analyze" => basis = result from /api/darkroom/analyze (same object you render in AnalysisView)
- */
-export default function DarkRoomChat({
-    mode,
-    basis,
-    cohortA_label,
-    cohortB_label,
-}: {
-    mode: Mode;
-    basis: any;
-    cohortA_label?: string;
-    cohortB_label?: string;
-}) {
+export default function VideosChat({ basis, mode }: { basis: any; mode: Mode }) {
     const [messages, setMessages] = React.useState<ChatMsg[]>([
         { role: "assistant", content: starterFor(mode) },
     ]);
@@ -73,14 +57,10 @@ export default function DarkRoomChat({
         setLoading(true);
 
         try {
-            const res = await fetch("/api/darkroom/chat", {
+            const res = await fetch("/api/videos/chat", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    mode,
-                    basis,
-                    messages: next,
-                }),
+                body: JSON.stringify({ mode, basis, messages: next }),
             });
 
             const json = await res.json();
@@ -88,10 +68,7 @@ export default function DarkRoomChat({
             if (!res.ok) {
                 setMessages((p) => [
                     ...p,
-                    {
-                        role: "assistant",
-                        content: json?.error || "No se pudo responder. Intenta de nuevo.",
-                    },
+                    { role: "assistant", content: json?.error || "No se pudo responder. Intenta de nuevo." },
                 ]);
                 return;
             }
@@ -99,28 +76,17 @@ export default function DarkRoomChat({
             setMessages((p) => [...p, { role: "assistant", content: json.answer ?? "OK" }]);
         } catch (e) {
             console.error(e);
-            setMessages((p) => [
-                ...p,
-                { role: "assistant", content: "Error de red. Intenta de nuevo." },
-            ]);
+            setMessages((p) => [...p, { role: "assistant", content: "Error de red. Intenta de nuevo." }]);
         } finally {
             setLoading(false);
         }
     };
 
-    // ---- layout based on size ----
     const containerStyle: React.CSSProperties =
         size === "min"
             ? { position: "fixed", bottom: 14, right: 14, zIndex: 50 }
             : size === "dock"
-                ? {
-                    position: "fixed",
-                    bottom: 12,
-                    right: 0,
-                    left: 85, // adjust if sidebar, otherwise set to 12
-                    width: "auto",
-                    zIndex: 50,
-                }
+                ? { position: "fixed", bottom: 12, right: 0, left: 85, width: "auto", zIndex: 50 }
                 : {
                     position: "fixed",
                     inset: 0,
@@ -188,10 +154,7 @@ export default function DarkRoomChat({
     }
 
     return (
-        <div
-            style={containerStyle}
-            onClick={size === "full" ? () => setSize("dock") : undefined}
-        >
+        <div style={containerStyle} onClick={size === "full" ? () => setSize("dock") : undefined}>
             <div style={panelStyle} onClick={(e) => e.stopPropagation()}>
                 <div
                     style={{
@@ -205,22 +168,8 @@ export default function DarkRoomChat({
                 >
                     <div>
                         <div className="fs18 fw700">{headerFor(mode)}</div>
-
-                        <div style={{ color: "#666", marginTop: 6, lineHeight: 1.35 }}>
-                            {mode === "compare" ? (
-                                <>
-                                    <div>
-                                        <b>A:</b> {cohortA_label || "Cohorte A"}
-                                    </div>
-                                    <div>
-                                        <b>B:</b> {cohortB_label || "Cohorte B"}
-                                    </div>
-                                </>
-                            ) : null}
-
-                            <div style={{ marginTop: 6 }}>
-                                Esta conversación no se guarda. Se reinicia si sales de la página.
-                            </div>
+                        <div style={{ color: "#666", marginTop: 6 }}>
+                            Esta conversación no se guarda. Se reinicia si sales de la página.
                         </div>
                     </div>
 
@@ -245,22 +194,11 @@ export default function DarkRoomChat({
                     </button>
                 </div>
 
-                <div
-                    style={{
-                        padding: 14,
-                        height: bodyHeight,
-                        maxHeight: size === "dock" ? "30vh" : undefined,
-                        overflowY: "auto",
-                    }}
-                >
+                <div style={{ padding: 14, height: bodyHeight, maxHeight: size === "dock" ? "30vh" : undefined, overflowY: "auto" }}>
                     {messages.map((m, idx) => (
                         <div key={idx} style={{ marginBottom: 12 }}>
-                            <div style={{ fontWeight: 800, marginBottom: 4 }}>
-                                {m.role === "user" ? "Tú" : "Asistente"}
-                            </div>
-                            <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.35, color: "#111" }}>
-                                {m.content}
-                            </div>
+                            <div style={{ fontWeight: 800, marginBottom: 4 }}>{m.role === "user" ? "Tú" : "Asistente"}</div>
+                            <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.35 }}>{m.content}</div>
                         </div>
                     ))}
                 </div>

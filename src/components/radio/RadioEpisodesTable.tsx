@@ -30,28 +30,6 @@ type Row = {
     transcript_text?: string | null;
 };
 
-function badgeStyle(status: string): React.CSSProperties {
-    const s = String(status || "").toLowerCase();
-    const base: React.CSSProperties = {
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        padding: "4px 10px",
-        borderRadius: 999,
-        border: "1px solid #ddd",
-        fontSize: 12,
-        fontWeight: 800,
-        background: "#fff",
-        color: "#111",
-        whiteSpace: "nowrap",
-    };
-
-    if (s === "done") return { ...base, border: "1px solid #111" };
-    if (s === "error") return { ...base, border: "1px solid #111", background: "#fff" };
-    if (s === "processing") return { ...base, border: "1px solid #111", background: "#fafafa" };
-    return base;
-}
-
 export default function RadioEpisodesTable({
     filters,
     filtersApi,
@@ -133,6 +111,12 @@ export default function RadioEpisodesTable({
                 }}
             >
                 Analizar
+            </button>
+            <button
+                onClick={() => setCompareOpen(true)}
+                style={{ marginLeft: 10, height: 40, padding: "0 12px", borderRadius: 8, border: "1px solid #ddd", background: "#000", color: "#fff" }}
+            >
+                Comparar
             </button>
 
             <div style={{ height: 14 }} />
@@ -236,13 +220,6 @@ export default function RadioEpisodesTable({
                         Siguiente
                     </button>
                 </div>
-
-                <button
-                    onClick={() => setCompareOpen(true)}
-                    style={{ height: 40, padding: "0 12px", borderRadius: 8, border: "1px solid #ddd", background: "#000", color: "#fff" }}
-                >
-                    Comparar
-                </button>
             </div>
 
             <CompareModalRadio

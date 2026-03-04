@@ -68,7 +68,7 @@ export default function CabildosChat({
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    mode,     // ✅ key
+                    mode,
                     basis,
                     messages: next,
                 }),

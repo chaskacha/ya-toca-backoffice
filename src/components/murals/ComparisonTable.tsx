@@ -22,9 +22,9 @@ export type CompareItem = {
 export type CompareResult = {
     summary?: string;
 
-    // ✅ murals: compare per event or per region (use one of them)
     per_event?: CompareItem[];
     per_region?: CompareItem[];
+    per_activity?: CompareItem[];
 
     methodology_sources?: MethodSource[];
     limitations?: string[];
@@ -44,6 +44,7 @@ export default function MuralsComparisonTable({
     const per: CompareItem[] =
         (data?.per_event?.length ? data.per_event : null) ??
         (data?.per_region?.length ? data.per_region : null) ??
+        (data?.per_activity?.length ? (data as any).per_activity : null) ??
         [];
 
     return (

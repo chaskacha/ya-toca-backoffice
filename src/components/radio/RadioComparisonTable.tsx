@@ -55,7 +55,7 @@ export default function RadioComparisonTable({
                 <thead>
                     <HeaderRow
                         labels={[
-                            dimensionLabel,
+                            // dimensionLabel,
                             cohortA_label,
                             cohortB_label,
                             "Diferencias clave",
@@ -68,7 +68,7 @@ export default function RadioComparisonTable({
                 <tbody>
                     {per.map((row, idx) => (
                         <tr key={idx} style={{ borderBottom: "1px solid #f0f0f0", verticalAlign: "top" }}>
-                            <Cell bold>{row.name}</Cell>
+                            {/* <Cell bold>{row.name}</Cell> */}
                             <Cell><Bullets items={row.cohortA_tendencies} /></Cell>
                             <Cell><Bullets items={row.cohortB_tendencies} /></Cell>
                             <Cell><Bullets items={row.key_differences} /></Cell>
