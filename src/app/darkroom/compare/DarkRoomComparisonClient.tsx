@@ -125,7 +125,8 @@ export default function DarkRoomComparisonClient() {
                                 />
                                 <div style={{ height: 14 }} />
                                 <DarkRoomComparisonChat
-                                    data={data}
+                                    mode="compare"
+                                    basis={data}
                                     cohortA_label={cohortA_label}
                                     cohortB_label={cohortB_label}
                                 />
