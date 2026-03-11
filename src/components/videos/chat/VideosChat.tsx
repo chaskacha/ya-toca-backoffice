@@ -30,7 +30,7 @@ function headerFor(mode: Mode) {
 
 function starterFor(mode: Mode) {
     return mode === "compare"
-        ? "Listo. Pregúntame lo que quieras sobre la comparación de videos. Responderé basándome solo en el JSON de comparación."
+        ? "Listo. Pregúntame lo que quieras sobre la comparación de videos."
         : "Listo. Pregúntame lo que quieras sobre el análisis del grupo filtrado. Puedo resumir por grupos, citar evidencia y señalar limitaciones.";
 }
 

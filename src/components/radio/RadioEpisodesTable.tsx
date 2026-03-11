@@ -2,7 +2,10 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
-import CompareModalRadio, { CompareModalValueRadio } from "@/components/radio/CompareModalRadio";
+import CompareModalRadio, {
+    CompareModalValueRadio,
+    CompareGroup,
+} from "@/components/radio/CompareModalRadio";
 import type { RadioFiltersState } from "@/app/radio/page";
 
 type FiltersApi = {
@@ -15,20 +18,22 @@ type Row = {
     created_at: string;
     aired_at?: string | null;
     title?: string | null;
-
     program_id: number;
     name_program: string;
-
     topic_id?: number | null;
     topic_name?: string | null;
-
     mp3_url: string;
-
     status: string;
     error?: string | null;
-
     transcript_text?: string | null;
 };
+
+function encodeGroup(group: CompareGroup) {
+    const params = new URLSearchParams();
+    if (group.programId) params.set("programId", group.programId);
+    if (group.topicId) params.set("topicId", group.topicId);
+    return params.toString();
+}
 
 export default function RadioEpisodesTable({
     filters,
@@ -59,12 +64,10 @@ export default function RadioEpisodesTable({
         return `/api/radio/episodes/list?${params.toString()}`;
     }, [filters.programId, filters.topicId, page]);
 
-    // reset page when shared filters change
     React.useEffect(() => {
         setPage(1);
     }, [filters.programId, filters.topicId]);
 
-    // load rows
     React.useEffect(() => {
         const run = async () => {
             try {
@@ -85,7 +88,6 @@ export default function RadioEpisodesTable({
     }, [buildUrl]);
 
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
-    const [openTranscriptId, setOpenTranscriptId] = React.useState<number | null>(null);
 
     return (
         <div style={{ marginTop: 28 }}>
@@ -95,10 +97,8 @@ export default function RadioEpisodesTable({
             <button
                 onClick={() => {
                     const params = new URLSearchParams();
-
                     if (filters.programId) params.set("programId", filters.programId);
                     if (filters.topicId) params.set("topicId", filters.topicId);
-
                     router.push(`/radio/analyze?${params.toString()}`);
                 }}
                 style={{
@@ -106,15 +106,24 @@ export default function RadioEpisodesTable({
                     padding: "0 12px",
                     borderRadius: 8,
                     background: "linear-gradient(90deg, hsla(346, 100%, 83%, 1) 0%, hsla(238, 70%, 48%, 1) 100%)",
-                    filter: "progid: DXImageTransform.Microsoft.gradient( startColorstr=\"#FFA8BD\", endColorstr=\"#242ACF\", GradientType=1 )",
+                    filter: 'progid: DXImageTransform.Microsoft.gradient( startColorstr="#FFA8BD", endColorstr="#242ACF", GradientType=1 )',
                     color: "#fff",
                 }}
             >
                 Analizar
             </button>
+
             <button
                 onClick={() => setCompareOpen(true)}
-                style={{ marginLeft: 10, height: 40, padding: "0 12px", borderRadius: 8, border: "1px solid #ddd", background: "#000", color: "#fff" }}
+                style={{
+                    marginLeft: 10,
+                    height: 40,
+                    padding: "0 12px",
+                    borderRadius: 8,
+                    border: "1px solid #ddd",
+                    background: "#000",
+                    color: "#fff",
+                }}
             >
                 Comparar
             </button>
@@ -132,59 +141,40 @@ export default function RadioEpisodesTable({
                     <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1100 }}>
                         <thead>
                             <tr style={{ textAlign: "left", borderBottom: "1px solid #eee" }}>
-                                {/* <th style={{ padding: 12 }}>Fecha</th> */}
                                 <th style={{ padding: 12 }}>Radio</th>
-                                {/* <th style={{ padding: 12 }}>Pregunta estímulo</th> */}
                                 <th style={{ padding: 12 }}>Respuesta</th>
                             </tr>
                         </thead>
 
                         <tbody>
-                            {rows.map((r) => {
-                                const opened = openTranscriptId === r.id;
-                                const transcript = String(r.transcript_text ?? "").trim();
-                                const preview = transcript.length > 700 ? transcript.slice(0, 700) + "…" : transcript;
+                            {rows.map((r) => (
+                                <tr key={r.id} style={{ borderBottom: "1px solid #f0f0f0", verticalAlign: "top" }}>
+                                    <td style={{ padding: 12, whiteSpace: "nowrap", fontWeight: 800 }}>
+                                        {r.name_program}
+                                    </td>
 
-                                return (
-                                    <React.Fragment key={r.id}>
-                                        <tr style={{ borderBottom: "1px solid #f0f0f0", verticalAlign: "top" }}>
-                                            {/* <td style={{ padding: 12, whiteSpace: "nowrap" }}>
-                                                {(r.aired_at || r.created_at || "").slice(0, 10)}
-                                            </td> */}
+                                    <td style={{ padding: 12 }}>
+                                        <div style={{ whiteSpace: "normal", wordBreak: "break-word", overflowWrap: "anywhere" }}>
+                                            {r.transcript_text ? r.transcript_text : "No transcript"}
+                                        </div>
 
-                                            <td style={{ padding: 12, whiteSpace: "nowrap", fontWeight: 800 }}>
-                                                {r.name_program}
-                                            </td>
-
-                                            {/* <td style={{ padding: 12, whiteSpace: "wrap", maxWidth: 280, minWidth: 280 }}>
-                                                {r.title}
-                                            </td> */}
-
-                                            <td style={{ padding: 12 }}>
-                                                <div style={{ whiteSpace: "normal", wordBreak: "break-word", overflowWrap: "anywhere" }}>
-                                                    {r.transcript_text ? r.transcript_text : "No transcript"}
-                                                </div>
-
-                                                <div
-                                                    style={{
-                                                        marginTop: 4,
-                                                        fontSize: 12,
-                                                        opacity: 0.7,
-                                                        lineHeight: 1.25,
-                                                        whiteSpace: "normal",
-                                                        wordBreak: "break-word",
-                                                        overflowWrap: "anywhere",
-                                                        maxWidth: 500
-                                                    }}
-                                                >
-                                                    {r.title}
-                                                </div>
-                                            </td>
-
-                                        </tr>
-                                    </React.Fragment>
-                                );
-                            })}
+                                        <div
+                                            style={{
+                                                marginTop: 4,
+                                                fontSize: 12,
+                                                opacity: 0.7,
+                                                lineHeight: 1.25,
+                                                whiteSpace: "normal",
+                                                wordBreak: "break-word",
+                                                overflowWrap: "anywhere",
+                                                maxWidth: 500,
+                                            }}
+                                        >
+                                            {r.title}
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
 
                             {rows.length === 0 ? (
                                 <tr>
@@ -230,13 +220,9 @@ export default function RadioEpisodesTable({
                     setCompareOpen(false);
 
                     const params = new URLSearchParams();
-                    params.set("dimension", val.dimension);
-
-                    // keep current topic filter in compare
-                    if (filters.topicId) params.set("topicId", filters.topicId);
-
-                    val.aValues.forEach((x) => params.append("a", x));
-                    val.bValues.forEach((x) => params.append("b", x));
+                    val.groups.forEach((g) => {
+                        params.append("group", encodeGroup(g));
+                    });
 
                     router.push(`/radio/compare?${params.toString()}`);
                 }}

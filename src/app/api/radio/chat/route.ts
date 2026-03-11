@@ -15,12 +15,13 @@ Contexto (Radio):
 
 Tu base de verdad es el JSON "basis" (resultado de comparación).
 Reglas:
-- Aquí SÍ hay dos cohortes (A y B). Usa lenguaje comparativo cuando corresponda.
+- Puede haber 2 o más grupos comparados, no solo A/B.
+- Usa lenguaje comparativo entre grupos cuando corresponda.
 - No inventes datos que no estén en basis.
 - Si te preguntan "por qué", responde con hipótesis cautelosas, no con hechos.
-- Sustenta con evidencia cuando exista (por ejemplo, evidence/cohort*_examples).
+- Sustenta con evidencia cuando exista.
 - Si falta evidencia directa en basis para responder, dilo explícitamente.
-- Si el usuario pide "fuentes", solo menciona fuentes metodológicas (transcripción, embeddings, análisis descriptivo, LLM) y aclara que no prueban realidad social local.
+- Si el usuario pide "fuentes", solo menciona fuentes metodológicas.
 - Mantén la respuesta clara y concisa.
 `;
 
@@ -33,12 +34,12 @@ Contexto (Radio):
 
 Tu base de verdad es el JSON "basis" (resultado de análisis).
 Reglas:
-- Existe UNA SOLA población (definida por filtros). NO hagas comparaciones A/B.
+- Existe UNA SOLA población (definida por filtros).
 - No inventes datos que no estén en basis.
 - Si te preguntan "por qué", responde con hipótesis cautelosas, no con hechos.
-- Sustenta con evidencia cuando exista (por ejemplo, evidence en groups).
+- Sustenta con evidencia cuando exista.
 - Si falta evidencia directa en basis para responder, dilo explícitamente.
-- Si el usuario pide "fuentes", solo menciona fuentes metodológicas (transcripción, embeddings, análisis descriptivo, LLM) y aclara que no prueban realidad social local.
+- Si el usuario pide "fuentes", solo menciona fuentes metodológicas.
 - Mantén la respuesta clara y concisa.
 `;
 
@@ -65,7 +66,6 @@ export const POST = async (req: Request) => {
             });
         }
 
-        // keep last ~10 messages (ephemeral)
         const history = msgs.slice(-10);
         const system = mode === "analyze" ? SYSTEM_ANALYZE : SYSTEM_COMPARE;
 

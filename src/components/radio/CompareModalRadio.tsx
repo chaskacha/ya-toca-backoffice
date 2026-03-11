@@ -2,14 +2,14 @@
 
 import React from "react";
 
-type Option = { label: string; value: string };
-
-export type CompareDimensionRadio = "programId" | "topicId";
+export type CompareGroup = {
+    id: string;
+    programId: string;
+    topicId: string;
+};
 
 export type CompareModalValueRadio = {
-    dimension: CompareDimensionRadio;
-    aValues: string[];
-    bValues: string[];
+    groups: CompareGroup[];
 };
 
 type FiltersApi = {
@@ -17,16 +17,36 @@ type FiltersApi = {
     topics: { id: number; topic_name: string }[];
 };
 
-function uniq(arr: string[]) {
-    return Array.from(new Set(arr));
+type Option = { label: string; value: string };
+
+function uid() {
+    return Math.random().toString(36).slice(2, 10);
 }
 
-function toggle(list: string[], v: string) {
-    return list.includes(v) ? list.filter((x) => x !== v) : [...list, v];
+function createEmptyGroup(): CompareGroup {
+    return {
+        id: uid(),
+        programId: "",
+        topicId: "",
+    };
 }
 
-function remove(list: string[], v: string) {
-    return list.filter((x) => x !== v);
+function isValidGroup(g: CompareGroup) {
+    return !!g.programId || !!g.topicId;
+}
+
+function normalizeGroups(groups: CompareGroup[]) {
+    return groups
+        .map((g) => ({
+            id: g.id || uid(),
+            programId: String(g.programId || "").trim(),
+            topicId: String(g.topicId || "").trim(),
+        }))
+        .filter(isValidGroup);
+}
+
+function groupKey(g: CompareGroup) {
+    return `p:${g.programId || ""}|t:${g.topicId || ""}`;
 }
 
 export default function CompareModalRadio({
@@ -40,39 +60,47 @@ export default function CompareModalRadio({
     onApply: (val: CompareModalValueRadio) => void;
     filtersApi: FiltersApi | null;
 }) {
-    const [dimension, setDimension] = React.useState<CompareDimensionRadio>("programId");
-    const [aValues, setAValues] = React.useState<string[]>([]);
-    const [bValues, setBValues] = React.useState<string[]>([]);
+    const [groups, setGroups] = React.useState<CompareGroup[]>([
+        createEmptyGroup(),
+        createEmptyGroup(),
+    ]);
 
     React.useEffect(() => {
         if (!open) return;
-        setDimension("programId");
-        setAValues([]);
-        setBValues([]);
+        setGroups([createEmptyGroup(), createEmptyGroup()]);
     }, [open]);
 
     if (!open) return null;
 
-    const options: Option[] =
-        dimension === "programId"
-            ? (filtersApi?.programs ?? []).map((p) => ({ label: p.name_program, value: String(p.id) }))
-            : [
-                ...(filtersApi?.topics ?? []).map((t) => ({ label: t.topic_name, value: String(t.id) })),
-            ];
+    const programOptions: Option[] = (filtersApi?.programs ?? []).map((p) => ({
+        label: p.name_program,
+        value: String(p.id),
+    }));
 
-    const onToggleA = (v: string) => {
-        setAValues((prev) => uniq(toggle(prev, v)));
-        setBValues((prev) => remove(prev, v));
+    const topicOptions: Option[] = (filtersApi?.topics ?? []).map((t) => ({
+        label: t.topic_name,
+        value: String(t.id),
+    }));
+
+    const normalizedGroups = normalizeGroups(groups);
+    const keys = normalizedGroups.map(groupKey);
+    const hasDuplicates = new Set(keys).size !== keys.length;
+    const canApply = normalizedGroups.length >= 2 && !hasDuplicates;
+
+    const setGroupValue = (groupId: string, patch: Partial<CompareGroup>) => {
+        setGroups((prev) => prev.map((g) => (g.id === groupId ? { ...g, ...patch } : g)));
     };
 
-    const onToggleB = (v: string) => {
-        setBValues((prev) => uniq(toggle(prev, v)));
-        setAValues((prev) => remove(prev, v));
+    const addGroup = () => {
+        setGroups((prev) => [...prev, createEmptyGroup()]);
     };
 
-    const canApply = aValues.length > 0 && bValues.length > 0;
-
-    const title = dimension === "programId" ? "Comparar programas" : "Comparar topics";
+    const removeGroup = (groupId: string) => {
+        setGroups((prev) => {
+            const next = prev.filter((g) => g.id !== groupId);
+            return next.length >= 2 ? next : [createEmptyGroup(), createEmptyGroup()];
+        });
+    };
 
     return (
         <div
@@ -90,20 +118,35 @@ export default function CompareModalRadio({
         >
             <div
                 style={{
-                    width: "min(920px, 100%)",
+                    width: "min(1100px, 100%)",
                     background: "#2f2f2f",
                     borderRadius: 16,
                     padding: 18,
                     color: "#fff",
                     boxShadow: "0 8px 30px rgba(0,0,0,.35)",
-                    maxHeight: "80vh",
-                    minHeight: "80vh",
+                    maxHeight: "88vh",
+                    minHeight: "78vh",
                     overflowY: "auto",
                 }}
                 onClick={(e) => e.stopPropagation()}
             >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div style={{ fontSize: 18, fontWeight: 800 }}>{title}</div>
+                <div
+                    style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        gap: 12,
+                    }}
+                >
+                    <div>
+                        <div style={{ fontSize: 18, fontWeight: 800 }}>
+                            Comparar múltiples grupos
+                        </div>
+                        <div style={{ marginTop: 6, fontSize: 13, opacity: 0.8 }}>
+                            Crea 2 o más grupos. Cada grupo puede combinar Programa y Topic.
+                        </div>
+                    </div>
+
                     <button
                         onClick={onClose}
                         style={{
@@ -122,66 +165,177 @@ export default function CompareModalRadio({
                     </button>
                 </div>
 
-                <div style={{ height: 14 }} />
+                <div style={{ height: 16 }} />
 
-                <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-                    <button
-                        onClick={() => {
-                            setDimension("programId");
-                            setAValues([]);
-                            setBValues([]);
-                        }}
-                        style={{
-                            height: 38,
-                            padding: "0 12px",
-                            borderRadius: 10,
-                            border: "1px solid rgba(255,255,255,.2)",
-                            background: dimension === "programId" ? "#fff" : "transparent",
-                            color: dimension === "programId" ? "#000" : "#fff",
-                            cursor: "pointer",
-                            fontWeight: 800,
-                        }}
-                    >
-                        Programas
-                    </button>
-
-                    <button
-                        onClick={() => {
-                            setDimension("topicId");
-                            setAValues([]);
-                            setBValues([]);
-                        }}
-                        style={{
-                            height: 38,
-                            padding: "0 12px",
-                            borderRadius: 10,
-                            border: "1px solid rgba(255,255,255,.2)",
-                            background: dimension === "topicId" ? "#fff" : "transparent",
-                            color: dimension === "topicId" ? "#000" : "#fff",
-                            cursor: "pointer",
-                            fontWeight: 800,
-                        }}
-                    >
-                        Topics
-                    </button>
-
-                    <div style={{ opacity: 0.8, fontSize: 13 }}>
-                        Selecciona items para A y B (no pueden repetirse).
-                    </div>
+                <div
+                    style={{
+                        padding: 12,
+                        borderRadius: 12,
+                        background: "rgba(255,255,255,.07)",
+                        fontSize: 13,
+                        lineHeight: 1.45,
+                        opacity: 0.9,
+                    }}
+                >
+                    Ejemplos:
+                    <br />
+                    - Grupo 1: Programa A + Topic X
+                    <br />
+                    - Grupo 2: Programa A + Topic Y
+                    <br />
+                    - Grupo 3: Programa A + Topic Z
+                    <br />
+                    <br />
+                    Reglas:
+                    <br />
+                    - Cada grupo debe tener al menos Programa o Topic.
+                    <br />
+                    - Debes tener mínimo 2 grupos válidos.
+                    <br />
+                    - No puede repetirse el mismo grupo exacto.
                 </div>
 
                 <div style={{ height: 16 }} />
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                    <Column title="Selección 1 (A)" options={options} values={aValues} onToggle={onToggleA} />
-                    <Column title="Selección 2 (B)" options={options} values={bValues} onToggle={onToggleB} />
+                <div
+                    style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        marginBottom: 12,
+                    }}
+                >
+                    <div style={{ fontWeight: 800, fontSize: 14 }}>
+                        Grupos a comparar
+                    </div>
+
+                    <button
+                        onClick={addGroup}
+                        style={{
+                            height: 36,
+                            padding: "0 12px",
+                            borderRadius: 10,
+                            border: "1px solid rgba(255,255,255,.2)",
+                            background: "#fff",
+                            color: "#000",
+                            fontWeight: 800,
+                            cursor: "pointer",
+                        }}
+                    >
+                        + Agregar grupo
+                    </button>
                 </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    {groups.map((g, idx) => {
+                        const valid = isValidGroup(g);
+
+                        return (
+                            <div
+                                key={g.id}
+                                style={{
+                                    border: "1px solid rgba(255,255,255,.12)",
+                                    borderRadius: 14,
+                                    padding: 12,
+                                    background: "rgba(255,255,255,.06)",
+                                }}
+                            >
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        justifyContent: "space-between",
+                                        alignItems: "center",
+                                        marginBottom: 10,
+                                        gap: 10,
+                                    }}
+                                >
+                                    <div style={{ fontWeight: 800 }}>
+                                        Grupo {idx + 1}
+                                    </div>
+
+                                    <button
+                                        onClick={() => removeGroup(g.id)}
+                                        style={{
+                                            height: 32,
+                                            padding: "0 10px",
+                                            borderRadius: 10,
+                                            border: "1px solid rgba(255,255,255,.2)",
+                                            background: "transparent",
+                                            color: "#fff",
+                                            cursor: "pointer",
+                                        }}
+                                    >
+                                        Eliminar
+                                    </button>
+                                </div>
+
+                                <div
+                                    style={{
+                                        display: "grid",
+                                        gridTemplateColumns: "1fr 1fr",
+                                        gap: 10,
+                                    }}
+                                >
+                                    <SelectBox
+                                        label="Programa"
+                                        value={g.programId}
+                                        onChange={(v) => setGroupValue(g.id, { programId: v })}
+                                        options={programOptions}
+                                        placeholder="Todos / no restringir"
+                                    />
+
+                                    <SelectBox
+                                        label="Topic"
+                                        value={g.topicId}
+                                        onChange={(v) => setGroupValue(g.id, { topicId: v })}
+                                        options={topicOptions}
+                                        placeholder="Todos / no restringir"
+                                    />
+                                </div>
+
+                                {!valid ? (
+                                    <div
+                                        style={{
+                                            marginTop: 10,
+                                            fontSize: 12,
+                                            color: "#ffd9a8",
+                                        }}
+                                    >
+                                        Selecciona al menos un Programa o un Topic.
+                                    </div>
+                                ) : null}
+                            </div>
+                        );
+                    })}
+                </div>
+
+                {hasDuplicates ? (
+                    <div
+                        style={{
+                            marginTop: 16,
+                            padding: 12,
+                            borderRadius: 12,
+                            background: "rgba(255,100,100,.12)",
+                            border: "1px solid rgba(255,100,100,.3)",
+                            color: "#ffd2d2",
+                            fontSize: 13,
+                        }}
+                    >
+                        Hay grupos repetidos. Cada grupo debe ser único.
+                    </div>
+                ) : null}
 
                 <div style={{ height: 18 }} />
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                <div
+                    style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: 16,
+                    }}
+                >
                     <button
-                        onClick={() => onApply({ dimension, aValues, bValues })}
+                        onClick={() => onApply({ groups: normalizedGroups })}
                         disabled={!canApply}
                         style={{
                             height: 46,
@@ -218,50 +372,45 @@ export default function CompareModalRadio({
     );
 }
 
-function Column({
-    title,
+function SelectBox({
+    label,
+    value,
+    onChange,
     options,
-    values,
-    onToggle,
+    placeholder,
 }: {
-    title: string;
+    label: string;
+    value: string;
+    onChange: (v: string) => void;
     options: Option[];
-    values: string[];
-    onToggle: (v: string) => void;
+    placeholder: string;
 }) {
     return (
-        <div>
-            <div style={{ fontSize: 14, opacity: 0.9, marginBottom: 10, fontWeight: 800 }}>{title}</div>
-
-            {options.length === 0 ? (
-                <div style={{ padding: 12, borderRadius: 12, background: "rgba(255,255,255,.08)", color: "rgba(255,255,255,.8)" }}>
-                    No hay opciones disponibles.
-                </div>
-            ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                    {options.map((o) => {
-                        const checked = values.includes(o.value);
-                        return (
-                            <label key={o.value} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
-                                <input type="checkbox" checked={checked} onChange={() => onToggle(o.value)} style={{ width: 18, height: 18 }} />
-                                <span
-                                    style={{
-                                        display: "inline-block",
-                                        padding: "8px 12px",
-                                        borderRadius: 10,
-                                        background: checked ? "#fff" : "#666",
-                                        color: checked ? "#000" : "#222",
-                                        minWidth: 160,
-                                        fontWeight: 800,
-                                    }}
-                                >
-                                    {o.label}
-                                </span>
-                            </label>
-                        );
-                    })}
-                </div>
-            )}
-        </div>
+        <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <span style={{ fontSize: 13, opacity: 0.9, fontWeight: 700 }}>
+                {label}
+            </span>
+            <select
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                style={{
+                    height: 40,
+                    borderRadius: 10,
+                    padding: "0 10px",
+                    border: "1px solid rgba(255,255,255,.15)",
+                    background: "#fff",
+                    color: "#000",
+                    outline: "none",
+                    width: "100%"
+                }}
+            >
+                <option value="">{placeholder}</option>
+                {options.map((o) => (
+                    <option key={o.value} value={o.value}>
+                        {o.label}
+                    </option>
+                ))}
+            </select>
+        </label>
     );
 }

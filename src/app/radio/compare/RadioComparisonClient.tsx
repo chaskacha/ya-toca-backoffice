@@ -4,7 +4,6 @@ import React from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Wrapper from "@/components/basic/wrapper";
 import SafeArea from "@/components/basic/safe-area";
-
 import RadioComparisonTable, { RadioCompareResult } from "@/components/radio/RadioComparisonTable";
 import RadioComparisonChat from "@/components/radio/RadioComparisonChat";
 import "./styles.css";
@@ -17,39 +16,47 @@ export default function RadioComparisonClient() {
     const sp = useSearchParams();
     const router = useRouter();
 
-    const dimension = (sp.get("dimension") || "programId") as "programId" | "topicId";
-    const topicId = sp.get("topicId") || ""; // optional shared scope
-
-    const a = getAll(sp as any, "a");
-    const b = getAll(sp as any, "b");
+    const groups = React.useMemo(() => getAll(sp, "group"), [sp]);
+    const groupsKey = React.useMemo(() => groups.join("|"), [groups]);
 
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
     const [data, setData] = React.useState<RadioCompareResult | null>(null);
 
-    const buildCompareUrl = React.useCallback(() => {
+    const compareUrl = React.useMemo(() => {
         const params = new URLSearchParams();
-        params.set("dimension", dimension);
-        if (topicId) params.set("topicId", topicId);
-        for (const v of a) params.append("a", v);
-        for (const v of b) params.append("b", v);
+        for (const v of groups) params.append("group", v);
         return `/api/radio/compare?${params.toString()}`;
-    }, [dimension, topicId, a.join("|"), b.join("|")]);
+    }, [groupsKey]);
 
     React.useEffect(() => {
+        console.log("RadioComparisonClient mounted");
+        console.log("groups from URL =>", groups);
+        console.log("API URL =>", compareUrl);
+    }, [groupsKey, compareUrl]);
+
+    React.useEffect(() => {
+        let cancelled = false;
+
         const run = async () => {
             try {
                 setLoading(true);
                 setError(null);
                 setData(null);
 
-                if (!a.length || !b.length) {
-                    setError("Faltan valores para comparar (a y b).");
+                if (groups.length < 2) {
+                    setError("Debes seleccionar al menos 2 grupos para comparar.");
                     return;
                 }
 
-                const res = await fetch(buildCompareUrl());
+                console.log("fetching =>", compareUrl);
+
+                const res = await fetch(compareUrl);
                 const json = await res.json();
+
+                console.log("compare response =>", json);
+
+                if (cancelled) return;
 
                 if (!res.ok) {
                     setError(json?.error || "No se pudo generar la comparación.");
@@ -58,19 +65,23 @@ export default function RadioComparisonClient() {
 
                 setData(json?.result ?? null);
             } catch (e) {
-                console.error(e);
-                setError("Error cargando comparación.");
+                console.error("compare page error =>", e);
+                if (!cancelled) {
+                    setError("Error cargando comparación.");
+                }
             } finally {
-                setLoading(false);
+                if (!cancelled) {
+                    setLoading(false);
+                }
             }
         };
 
         run();
-    }, [buildCompareUrl]);
 
-    const dimensionLabel = dimension === "programId" ? "Programa" : "Topic";
-    const cohortA_label = `Selección 1: ${a.join(", ")}`;
-    const cohortB_label = `Selección 2: ${b.join(", ")}`;
+        return () => {
+            cancelled = true;
+        };
+    }, [groupsKey, compareUrl]);
 
     return (
         <Wrapper>
@@ -80,7 +91,13 @@ export default function RadioComparisonClient() {
                         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
                             <button
                                 onClick={() => router.back()}
-                                style={{ height: 40, padding: "0 12px", borderRadius: 10, border: "1px solid #ddd", background: "#fff" }}
+                                style={{
+                                    height: 40,
+                                    padding: "0 12px",
+                                    borderRadius: 10,
+                                    border: "1px solid #ddd",
+                                    background: "#fff",
+                                }}
                             >
                                 ← Volver
                             </button>
@@ -90,16 +107,23 @@ export default function RadioComparisonClient() {
 
                         <div style={{ height: 12 }} />
 
-                        {loading ? <div className="dash-loading" style={{ marginTop: 16 }}>Generando comparación...</div> : null}
-                        {error ? <div className="dash-loading" style={{ marginTop: 16 }}>{error}</div> : null}
+                        {loading ? (
+                            <div className="dash-loading" style={{ marginTop: 16 }}>
+                                Generando comparación...
+                            </div>
+                        ) : null}
+
+                        {error ? (
+                            <div className="dash-loading" style={{ marginTop: 16 }}>
+                                {error}
+                            </div>
+                        ) : null}
 
                         {data ? (
                             <>
                                 <RadioComparisonTable
                                     data={data}
-                                    cohortA_label={cohortA_label}
-                                    cohortB_label={cohortB_label}
-                                    dimensionLabel={dimensionLabel}
+                                    title={data.comparison_title || "Comparación de grupos"}
                                 />
                                 <RadioComparisonChat basis={data} mode="compare" />
                             </>
