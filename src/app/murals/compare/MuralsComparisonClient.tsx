@@ -17,38 +17,37 @@ export default function MuralsComparisonClient() {
     const sp = useSearchParams();
     const router = useRouter();
 
-    // supported mural compare dimensions (adjust to your reality)
-    const dimension = sp.get("dimension") || "region";
-    const a = getAll(sp as any, "a");
-    const b = getAll(sp as any, "b");
+    const groups = React.useMemo(() => getAll(sp, "group"), [sp]);
+    const groupsKey = React.useMemo(() => groups.join("|"), [groups]);
 
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
     const [data, setData] = React.useState<CompareResult | null>(null);
 
-    const buildCompareUrl = React.useCallback(() => {
+    const compareUrl = React.useMemo(() => {
         const params = new URLSearchParams();
-        params.set("dimension", dimension);
-        for (const v of a) params.append("a", v);
-        for (const v of b) params.append("b", v);
-
+        groups.forEach((g) => params.append("group", g));
         return `/api/murals/compare?${params.toString()}`;
-    }, [dimension, a.join("|"), b.join("|")]);
+    }, [groupsKey]);
 
     React.useEffect(() => {
+        let cancelled = false;
+
         const run = async () => {
             try {
                 setLoading(true);
                 setError(null);
                 setData(null);
 
-                if (!a.length || !b.length) {
-                    setError("Faltan valores para comparar (a y b).");
+                if (groups.length < 2) {
+                    setError("Debes seleccionar al menos 2 grupos para comparar.");
                     return;
                 }
 
-                const res = await fetch(buildCompareUrl());
+                const res = await fetch(compareUrl);
                 const json = await res.json();
+
+                if (cancelled) return;
 
                 if (!res.ok) {
                     setError(json?.error || "No se pudo generar la comparación.");
@@ -58,17 +57,22 @@ export default function MuralsComparisonClient() {
                 setData(json?.result ?? null);
             } catch (e) {
                 console.error(e);
-                setError("Error cargando comparación.");
+                if (!cancelled) {
+                    setError("Error cargando comparación.");
+                }
             } finally {
-                setLoading(false);
+                if (!cancelled) {
+                    setLoading(false);
+                }
             }
         };
 
         run();
-    }, [buildCompareUrl]);
 
-    const cohortA_label = `Selección 1: ${a.join(", ")}`;
-    const cohortB_label = `Selección 2: ${b.join(", ")}`;
+        return () => {
+            cancelled = true;
+        };
+    }, [compareUrl, groupsKey]);
 
     return (
         <Wrapper>
@@ -110,8 +114,7 @@ export default function MuralsComparisonClient() {
                             <>
                                 <MuralsComparisonTable
                                     data={data}
-                                    cohortA_label={cohortA_label}
-                                    cohortB_label={cohortB_label}
+                                    title={data.comparison_title || "Comparación de grupos"}
                                 />
                                 <MuralsComparisonChat
                                     mode="compare"

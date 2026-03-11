@@ -4,29 +4,58 @@ import React from "react";
 
 type Option = { label: string; value: string };
 
-export type CompareDimension = "eventId" | "regionId" | "activityId";
+export type MuralsCompareGroup = {
+    id: string;
+    eventId: string[];
+    regionId: string[];
+    activityId: string[];
+};
 
 export type CompareModalValue = {
-    dimension: CompareDimension;
-    aValues: string[];
-    bValues: string[];
+    groups: MuralsCompareGroup[];
 };
+
+function uid() {
+    return Math.random().toString(36).slice(2, 10);
+}
 
 function uniq(arr: string[]) {
     return Array.from(new Set(arr));
 }
+
 function toggle(list: string[], v: string) {
     return list.includes(v) ? list.filter((x) => x !== v) : [...list, v];
 }
-function remove(list: string[], v: string) {
-    return list.filter((x) => x !== v);
+
+function createEmptyGroup(): MuralsCompareGroup {
+    return {
+        id: uid(),
+        eventId: [],
+        regionId: [],
+        activityId: [],
+    };
 }
 
-type FiltersApi = {
-    regions: { id: number; nombreregion: string }[];
-    events: { id: number; name: string }[];
-    activities: { id: number; name_event: string }[];
-};
+function normalizeGroup(g: MuralsCompareGroup): MuralsCompareGroup {
+    return {
+        ...g,
+        eventId: uniq(g.eventId.map((x) => x.trim()).filter(Boolean)),
+        regionId: uniq(g.regionId.map((x) => x.trim()).filter(Boolean)),
+        activityId: uniq(g.activityId.map((x) => x.trim()).filter(Boolean)),
+    };
+}
+
+function hasAnyValue(g: MuralsCompareGroup) {
+    return g.eventId.length > 0 || g.regionId.length > 0 || g.activityId.length > 0;
+}
+
+function groupKey(g: MuralsCompareGroup) {
+    return JSON.stringify({
+        eventId: [...g.eventId].sort(),
+        regionId: [...g.regionId].sort(),
+        activityId: [...g.activityId].sort(),
+    });
+}
 
 export default function CompareModal({
     open,
@@ -37,49 +66,71 @@ export default function CompareModal({
     open: boolean;
     onClose: () => void;
     onApply: (val: CompareModalValue) => void;
-    filtersApi: FiltersApi | null;
+    filtersApi: {
+        events?: { id: number; name: string }[];
+        regions?: { id: number; nombreregion: string }[];
+        activities?: { id: number; name_event: string }[];
+    } | null;
 }) {
-    console.log(filtersApi);
-    const [dimension, setDimension] = React.useState<CompareDimension>("eventId");
-    const [aValues, setAValues] = React.useState<string[]>([]);
-    const [bValues, setBValues] = React.useState<string[]>([]);
+    const [groups, setGroups] = React.useState<MuralsCompareGroup[]>([
+        createEmptyGroup(),
+        createEmptyGroup(),
+    ]);
 
     React.useEffect(() => {
         if (!open) return;
-        setDimension("eventId");
-        setAValues([]);
-        setBValues([]);
+        setGroups([createEmptyGroup(), createEmptyGroup()]);
     }, [open]);
-
-    React.useEffect(() => {
-        // reset selections when dimension changes
-        setAValues([]);
-        setBValues([]);
-    }, [dimension]);
 
     if (!open) return null;
 
-    const options: Option[] = (() => {
-        if (!filtersApi) return [];
-        if (dimension === "eventId") return (filtersApi.events ?? []).map((e) => ({ label: e.name, value: String(e.id) }));
-        if (dimension === "regionId") return (filtersApi.regions ?? []).map((r) => ({ label: r.nombreregion, value: String(r.id) }));
-        return (filtersApi.activities ?? []).map((a) => ({ label: a.name_event, value: String(a.id) }));
-    })();
+    const normalizedGroups = groups.map(normalizeGroup).filter(hasAnyValue);
+    const keys = normalizedGroups.map(groupKey);
+    const hasDuplicates = new Set(keys).size !== keys.length;
+    const canApply = normalizedGroups.length >= 2 && !hasDuplicates;
 
-    const onToggleA = (v: string) => {
-        setAValues((prev) => uniq(toggle(prev, v)));
-        setBValues((prev) => remove(prev, v));
+    const eventOptions: Option[] = (filtersApi?.events ?? []).map((x) => ({
+        label: x.name,
+        value: String(x.id),
+    }));
+
+    const regionOptions: Option[] = (filtersApi?.regions ?? []).map((x) => ({
+        label: x.nombreregion,
+        value: String(x.id),
+    }));
+
+    const activityOptions: Option[] = (filtersApi?.activities ?? []).map((x) => ({
+        label: x.name_event,
+        value: String(x.id),
+    }));
+
+    const setGroupField = (
+        groupId: string,
+        field: keyof Omit<MuralsCompareGroup, "id">,
+        value: string
+    ) => {
+        setGroups((prev) =>
+            prev.map((g) =>
+                g.id === groupId
+                    ? {
+                        ...g,
+                        [field]: toggle(g[field], value),
+                    }
+                    : g
+            )
+        );
     };
 
-    const onToggleB = (v: string) => {
-        setBValues((prev) => uniq(toggle(prev, v)));
-        setAValues((prev) => remove(prev, v));
+    const addGroup = () => {
+        setGroups((prev) => [...prev, createEmptyGroup()]);
     };
 
-    const canApply = aValues.length > 0 && bValues.length > 0;
-
-    const title =
-        dimension === "eventId" ? "Comparar eventos" : dimension === "regionId" ? "Comparar regiones" : "Comparar actividades";
+    const removeGroup = (groupId: string) => {
+        setGroups((prev) => {
+            const next = prev.filter((g) => g.id !== groupId);
+            return next.length >= 2 ? next : [createEmptyGroup(), createEmptyGroup()];
+        });
+    };
 
     return (
         <div
@@ -97,20 +148,26 @@ export default function CompareModal({
         >
             <div
                 style={{
-                    width: "min(920px, 100%)",
+                    width: "min(1200px, 100%)",
                     background: "#2f2f2f",
                     borderRadius: 16,
                     padding: 18,
                     color: "#fff",
                     boxShadow: "0 8px 30px rgba(0,0,0,.35)",
-                    maxHeight: "80vh",
+                    maxHeight: "88vh",
                     minHeight: "80vh",
                     overflowY: "auto",
                 }}
                 onClick={(e) => e.stopPropagation()}
             >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div style={{ fontSize: 18, fontWeight: 800 }}>{title}</div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+                    <div>
+                        <div style={{ fontSize: 18, fontWeight: 800 }}>Comparar múltiples grupos</div>
+                        <div style={{ marginTop: 6, fontSize: 13, opacity: 0.85 }}>
+                            Cada grupo puede combinar eventos, regiones y actividades.
+                        </div>
+                    </div>
+
                     <button
                         onClick={onClose}
                         style={{
@@ -129,27 +186,111 @@ export default function CompareModal({
                     </button>
                 </div>
 
-                <div style={{ height: 12 }} />
-
-                {/* dimension selector */}
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                    <DimButton active={dimension === "eventId"} onClick={() => setDimension("eventId")} label="Eventos" />
-                    <DimButton active={dimension === "regionId"} onClick={() => setDimension("regionId")} label="Regiones" />
-                    <DimButton active={dimension === "activityId"} onClick={() => setDimension("activityId")} label="Actividades" />
-                </div>
-
                 <div style={{ height: 16 }} />
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                    <Column title="Selección 1" options={options} values={aValues} onToggle={onToggleA} />
-                    <Column title="Selección 2" options={options} values={bValues} onToggle={onToggleB} />
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                    <div style={{ fontWeight: 700 }}>Grupos a comparar</div>
+                    <button
+                        onClick={addGroup}
+                        style={{
+                            height: 36,
+                            padding: "0 12px",
+                            borderRadius: 10,
+                            border: "1px solid rgba(255,255,255,.2)",
+                            background: "#fff",
+                            color: "#000",
+                            cursor: "pointer",
+                            fontWeight: 700,
+                        }}
+                    >
+                        + Agregar grupo
+                    </button>
                 </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    {groups.map((g, idx) => (
+                        <div
+                            key={g.id}
+                            style={{
+                                border: "1px solid rgba(255,255,255,.12)",
+                                borderRadius: 14,
+                                padding: 14,
+                                background: "rgba(255,255,255,.06)",
+                            }}
+                        >
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                                <div style={{ fontWeight: 700 }}>Grupo {idx + 1}</div>
+                                <button
+                                    onClick={() => removeGroup(g.id)}
+                                    style={{
+                                        height: 32,
+                                        padding: "0 10px",
+                                        borderRadius: 10,
+                                        border: "1px solid rgba(255,255,255,.2)",
+                                        background: "transparent",
+                                        color: "#fff",
+                                        cursor: "pointer",
+                                    }}
+                                >
+                                    Eliminar
+                                </button>
+                            </div>
+
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                                <MultiSelectBlock
+                                    title="Eventos"
+                                    options={eventOptions}
+                                    values={g.eventId}
+                                    onToggle={(v) => setGroupField(g.id, "eventId", v)}
+                                />
+
+                                <MultiSelectBlock
+                                    title="Regiones"
+                                    options={regionOptions}
+                                    values={g.regionId}
+                                    onToggle={(v) => setGroupField(g.id, "regionId", v)}
+                                />
+
+                                <div style={{ gridColumn: "1 / -1" }}>
+                                    <MultiSelectBlock
+                                        title="Actividades"
+                                        options={activityOptions}
+                                        values={g.activityId}
+                                        onToggle={(v) => setGroupField(g.id, "activityId", v)}
+                                    />
+                                </div>
+                            </div>
+
+                            {!hasAnyValue(normalizeGroup(g)) ? (
+                                <div style={{ marginTop: 10, fontSize: 12, color: "#ffd9a8" }}>
+                                    Selecciona al menos un filtro en este grupo.
+                                </div>
+                            ) : null}
+                        </div>
+                    ))}
+                </div>
+
+                {hasDuplicates ? (
+                    <div
+                        style={{
+                            marginTop: 16,
+                            padding: 12,
+                            borderRadius: 12,
+                            background: "rgba(255,100,100,.12)",
+                            border: "1px solid rgba(255,100,100,.3)",
+                            color: "#ffd2d2",
+                            fontSize: 13,
+                        }}
+                    >
+                        Hay grupos duplicados. Cada grupo debe ser único.
+                    </div>
+                ) : null}
 
                 <div style={{ height: 18 }} />
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                     <button
-                        onClick={() => onApply({ dimension, aValues, bValues })}
+                        onClick={() => onApply({ groups: normalizedGroups })}
                         disabled={!canApply}
                         style={{
                             height: 46,
@@ -181,39 +322,12 @@ export default function CompareModal({
                         Cancelar
                     </button>
                 </div>
-
-                {!filtersApi ? (
-                    <div style={{ marginTop: 14, opacity: 0.9, fontSize: 12 }}>
-                        ⚠️ <b>filtersApi</b> es null. Debes pasar <b>regions/events/activities</b> desde{" "}
-                        <code>/api/murals/phrases/filters</code>.
-                    </div>
-                ) : null}
             </div>
         </div>
     );
 }
 
-function DimButton({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
-    return (
-        <button
-            onClick={onClick}
-            style={{
-                height: 34,
-                padding: "0 12px",
-                borderRadius: 10,
-                border: "1px solid rgba(255,255,255,.25)",
-                background: active ? "#fff" : "rgba(255,255,255,.08)",
-                color: active ? "#000" : "#fff",
-                cursor: "pointer",
-                fontWeight: 800,
-            }}
-        >
-            {label}
-        </button>
-    );
-}
-
-function Column({
+function MultiSelectBlock({
     title,
     options,
     values,
@@ -226,36 +340,30 @@ function Column({
 }) {
     return (
         <div>
-            <div style={{ fontSize: 14, opacity: 0.9, marginBottom: 10 }}>{title}</div>
+            <div style={{ fontSize: 14, opacity: 0.9, marginBottom: 8, fontWeight: 700 }}>{title}</div>
 
-            {options.length === 0 ? (
-                <div style={{ padding: 12, borderRadius: 12, background: "rgba(255,255,255,.08)", color: "rgba(255,255,255,.8)" }}>
-                    No hay opciones disponibles para esta dimensión.
-                </div>
-            ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                    {options.map((o) => {
-                        const checked = values.includes(o.value);
-                        return (
-                            <label key={o.value} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
-                                <input type="checkbox" checked={checked} onChange={() => onToggle(o.value)} style={{ width: 18, height: 18 }} />
-                                <span
-                                    style={{
-                                        display: "inline-block",
-                                        padding: "8px 12px",
-                                        borderRadius: 10,
-                                        background: checked ? "#fff" : "#666",
-                                        color: checked ? "#000" : "#222",
-                                        minWidth: 160,
-                                    }}
-                                >
-                                    {o.label}
-                                </span>
-                            </label>
-                        );
-                    })}
-                </div>
-            )}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {options.map((o) => {
+                    const checked = values.includes(o.value);
+                    return (
+                        <button
+                            key={o.value}
+                            type="button"
+                            onClick={() => onToggle(o.value)}
+                            style={{
+                                padding: "8px 10px",
+                                borderRadius: 10,
+                                border: "1px solid rgba(255,255,255,.2)",
+                                background: checked ? "#fff" : "#666",
+                                color: checked ? "#000" : "#fff",
+                                cursor: "pointer",
+                            }}
+                        >
+                            {o.label}
+                        </button>
+                    );
+                })}
+            </div>
         </div>
     );
 }

@@ -1,4 +1,3 @@
-// app/api/cabildos/stations/compare/route.ts
 import { query } from "@/lib/db";
 import { openai_completions, EMBEDDING_MODEL, EMBEDDING_PIPELINE_VERSION } from "@/constants/openai";
 
@@ -11,7 +10,6 @@ type Row = {
     comentario: string;
     idestacion: number;
     estacion: string;
-
     region: string | null;
     genero: string | null;
     age_group: string | null;
@@ -20,9 +18,20 @@ type Row = {
     id_cabildo: number | null;
 };
 
+type CompareGroup = {
+    age_group: string[];
+    region: string[];
+    gender: string[];
+    nivelinstruccion: string[];
+    grupoetnico: string[];
+    cabildoId: number[];
+    stationId: number[];
+};
+
 function getMulti(sp: URLSearchParams, key: string) {
     return sp.getAll(key).map((s) => s.trim()).filter(Boolean);
 }
+
 function getMultiInt(sp: URLSearchParams, key: string) {
     return sp.getAll(key)
         .map((s) => s.trim())
@@ -30,18 +39,51 @@ function getMultiInt(sp: URLSearchParams, key: string) {
         .map((s) => Number(s));
 }
 
-function buildCohortFilters(sp: URLSearchParams, prefix: "a_" | "b_") {
-    return {
-        cabildoIds: getMultiInt(sp, `${prefix}cabildoId`),
-        regions: getMulti(sp, `${prefix}region`),
-        genders: getMulti(sp, `${prefix}gender`),
-        ageGroups: getMulti(sp, `${prefix}age`),
-        niveles: getMulti(sp, `${prefix}nivelinstruccion`),
-        etnicos: getMulti(sp, `${prefix}grupoetnico`),
+function parseGroupString(raw: string): CompareGroup | null {
+    const sp = new URLSearchParams(raw);
+
+    const group: CompareGroup = {
+        age_group: getMulti(sp, "age_group"),
+        region: getMulti(sp, "region"),
+        gender: getMulti(sp, "gender"),
+        nivelinstruccion: getMulti(sp, "nivelinstruccion"),
+        grupoetnico: getMulti(sp, "grupoetnico"),
+        cabildoId: getMultiInt(sp, "cabildoId"),
+        stationId: getMultiInt(sp, "stationId"),
     };
+
+    const hasAny =
+        group.age_group.length ||
+        group.region.length ||
+        group.gender.length ||
+        group.nivelinstruccion.length ||
+        group.grupoetnico.length ||
+        group.cabildoId.length ||
+        group.stationId.length;
+
+    return hasAny ? group : null;
 }
 
-function buildWhereClause(cohort: ReturnType<typeof buildCohortFilters>, paramOffset: number) {
+function getGroups(sp: URLSearchParams): CompareGroup[] {
+    return sp
+        .getAll("group")
+        .map((raw) => parseGroupString(raw))
+        .filter((x): x is CompareGroup => !!x);
+}
+
+function groupKey(g: CompareGroup) {
+    return JSON.stringify({
+        age_group: [...g.age_group].sort(),
+        region: [...g.region].sort(),
+        gender: [...g.gender].sort(),
+        nivelinstruccion: [...g.nivelinstruccion].sort(),
+        grupoetnico: [...g.grupoetnico].sort(),
+        cabildoId: [...g.cabildoId].sort((a, b) => a - b),
+        stationId: [...g.stationId].sort((a, b) => a - b),
+    });
+}
+
+function buildWhereClause(group: CompareGroup, paramOffset: number) {
     const params: any[] = [];
     const parts: string[] = [];
 
@@ -51,12 +93,12 @@ function buildWhereClause(cohort: ReturnType<typeof buildCohortFilters>, paramOf
         parts.push(`${col} = ANY($${paramOffset + params.length}::${cast}[])`);
     };
 
-    pushIn("b.id_cabildo", cohort.cabildoIds, "int");
-    pushIn("b.region", cohort.regions, "text");
-    pushIn("b.genero", cohort.genders, "text");
-    pushIn("b.age_group", cohort.ageGroups, "text"); // ✅ use age_group column
-    pushIn("b.nivelinstruccion", cohort.niveles, "text");
-    pushIn("b.grupoetnico", cohort.etnicos, "text");
+    pushIn("b.id_cabildo", group.cabildoId, "int");
+    pushIn("b.region", group.region, "text");
+    pushIn("b.genero", group.gender, "text");
+    pushIn("b.age_group", group.age_group, "text");
+    pushIn("b.nivelinstruccion", group.nivelinstruccion, "text");
+    pushIn("b.grupoetnico", group.grupoetnico, "text");
 
     const sql = parts.length ? ` AND ${parts.join(" AND ")}` : "";
     return { sql, params };
@@ -65,7 +107,6 @@ function buildWhereClause(cohort: ReturnType<typeof buildCohortFilters>, paramOf
 function parsePgVector(v: any): number[] | null {
     if (!v) return null;
 
-    // pgvector often returns string like "[0.1,0.2,...]"
     if (typeof v === "string") {
         const s = v.trim();
         if (!s.startsWith("[") || !s.endsWith("]")) return null;
@@ -91,128 +132,188 @@ const cosine = (a: number[], b: number[]) => {
     return dot / (Math.sqrt(na) * Math.sqrt(nb) + 1e-12);
 };
 
+function pickRepresentatives(rows: Row[], embMap: Map<number, number[]>, k = 10) {
+    const byStation = new Map<number, Row[]>();
+
+    for (const r of rows) {
+        byStation.set(r.idestacion, [...(byStation.get(r.idestacion) ?? []), r]);
+    }
+
+    const out: Record<number, { estacion: string; samples: { id: number; text: string }[] }> = {};
+
+    for (const [sid, list] of byStation.entries()) {
+        const vectors = list.map((r) => embMap.get(r.idcomentario)!);
+        const dim = vectors[0].length;
+        const centroid = new Array(dim).fill(0);
+
+        for (const v of vectors) {
+            for (let i = 0; i < dim; i++) centroid[i] += v[i];
+        }
+
+        for (let i = 0; i < dim; i++) centroid[i] /= vectors.length;
+
+        const ranked = list
+            .map((r, idx) => ({ r, score: cosine(centroid, vectors[idx]) }))
+            .sort((x, y) => y.score - x.score)
+            .slice(0, k)
+            .map((x) => ({
+                id: x.r.idcomentario,
+                text: String(x.r.comentario).slice(0, 1200),
+            }));
+
+        out[sid] = { estacion: list[0].estacion, samples: ranked };
+    }
+
+    return out;
+}
+
+function labelForGroup(g: CompareGroup) {
+    const parts: string[] = [];
+
+    if (g.age_group.length) parts.push(`Edad: ${g.age_group.join(", ")}`);
+    if (g.region.length) parts.push(`Región: ${g.region.join(", ")}`);
+    if (g.gender.length) parts.push(`Género: ${g.gender.join(", ")}`);
+    if (g.nivelinstruccion.length) parts.push(`Nivel: ${g.nivelinstruccion.join(", ")}`);
+    if (g.grupoetnico.length) parts.push(`Grupo étnico: ${g.grupoetnico.join(", ")}`);
+    if (g.cabildoId.length) parts.push(`Cabildo: ${g.cabildoId.join(", ")}`);
+    if (g.stationId.length) parts.push(`Estación: ${g.stationId.join(", ")}`);
+
+    return parts.join(" | ");
+}
+
 export const GET = async (req: Request) => {
     try {
         const { searchParams } = new URL(req.url);
+        const groups = getGroups(searchParams);
 
-        const stationIds = (() => {
-            const ids = getMultiInt(searchParams, "stationId");
-            const finalIds = (ids.length ? ids : DEFAULT_STATIONS).filter((x) => DEFAULT_STATIONS.includes(x));
-            return finalIds.length ? finalIds : DEFAULT_STATIONS;
-        })();
+        if (groups.length < 2) {
+            return new Response(
+                JSON.stringify({ error: "Selecciona al menos 2 grupos para comparar." }),
+                { status: 400, headers: { "Content-Type": "application/json" } }
+            );
+        }
 
-        const cohortA = buildCohortFilters(searchParams, "a_");
-        const cohortB = buildCohortFilters(searchParams, "b_");
+        const keys = groups.map(groupKey);
+        if (new Set(keys).size !== keys.length) {
+            return new Response(
+                JSON.stringify({ error: "Hay grupos duplicados. Cada grupo debe ser único." }),
+                { status: 400, headers: { "Content-Type": "application/json" } }
+            );
+        }
 
         const baseSql = `
         WITH
         raw AS (
             SELECT
-            p.id,
-            p.telefono,
-            p.id_cabildo,
-            p.region,
-            p.genero,
-            p.age_group,
-            p.nivelinstruccion,
-            p.grupoetnico,
-            p.fechacreacion
+                p.id,
+                p.telefono,
+                p.id_cabildo,
+                p.region,
+                p.genero,
+                p.age_group,
+                p.nivelinstruccion,
+                p.grupoetnico,
+                p.fechacreacion
             FROM participantes p
             WHERE
-            p.id_cabildo IS NOT NULL
-            AND p.telefono IS NOT NULL
-            AND btrim(p.telefono) <> ''
-            AND p.telefono <> $1
+                p.id_cabildo IS NOT NULL
+                AND p.telefono IS NOT NULL
+                AND btrim(p.telefono) <> ''
+                AND p.telefono <> $1
         ),
-
         dedup AS (
-            -- A) cabildos sin deduplicación
             SELECT *
             FROM raw
             WHERE id_cabildo = ANY($3::int[])
 
             UNION ALL
 
-            -- B) resto: dedup por teléfono conservando el más antiguo
             SELECT DISTINCT ON (telefono)
-            *
+                *
             FROM raw
             WHERE id_cabildo <> ALL($3::int[])
             ORDER BY telefono, fechacreacion ASC, id ASC
         ),
-
         base AS (
             SELECT d.*
             FROM dedup d
         ),
-
         joined AS (
             SELECT
-            b.*,
-            cp.idcomentario,
-            cm.texto AS comentario,
-            cm.idestacion,
-            e.nombreestacion AS estacion
+                b.*,
+                cp.idcomentario,
+                cm.texto AS comentario,
+                cm.idestacion,
+                e.nombreestacion AS estacion
             FROM base b
             JOIN comentariosparticipantes cp ON cp.idparticipante = b.id
             JOIN comentarios cm ON cm.id = cp.idcomentario
             JOIN estaciones e ON e.id = cm.idestacion
-            WHERE cm.idestacion = ANY($2::int[])
-            AND cm.texto IS NOT NULL
-            AND btrim(cm.texto) <> ''
+            WHERE cm.texto IS NOT NULL
+              AND btrim(cm.texto) <> ''
         )
         `;
 
-        const whereA = buildWhereClause(cohortA, 3);
-        const whereB = buildWhereClause(cohortB, 3);
-
-        const sqlA = `
-      ${baseSql}
-      SELECT
+        const buildSql = (whereSql: string) => `
+    ${baseSql}
+    SELECT
         idcomentario, comentario, idestacion, estacion,
         region, genero, age_group, nivelinstruccion, grupoetnico, id_cabildo
-      FROM joined b
-      WHERE 1=1
-      ${whereA.sql}
-      LIMIT 1200
-    `;
-        const sqlB = `
-      ${baseSql}
-      SELECT
-        idcomentario, comentario, idestacion, estacion,
-        region, genero, age_group, nivelinstruccion, grupoetnico, id_cabildo
-      FROM joined b
-      WHERE 1=1
-      ${whereB.sql}
-      LIMIT 1200
-    `;
+    FROM joined b
+    WHERE 1=1
+      AND b.idestacion = ANY($2::int[])
+      ${whereSql}
+    LIMIT 1200
+`;
 
-        const paramsA = [ADMIN_PHONE, stationIds, NO_DEDUP_CABILDO_IDS, ...whereA.params];
-        const paramsB = [ADMIN_PHONE, stationIds, NO_DEDUP_CABILDO_IDS, ...whereB.params];
+        const groupDatas = await Promise.all(
+            groups.map(async (g, index) => {
+                const where = buildWhereClause(g, 3);
 
+                const effectiveStationIds =
+                    g.stationId.length > 0 ? g.stationId : DEFAULT_STATIONS;
 
-        const [resA, resB] = await Promise.all([query(sqlA, paramsA), query(sqlB, paramsB)]);
-        const rowsA = resA.rows as Row[];
-        const rowsB = resB.rows as Row[];
+                const sql = buildSql(where.sql);
 
-        if (!rowsA.length || !rowsB.length) {
-            return new Response(JSON.stringify({
-                error: "No hay suficientes datos para comparar con los filtros seleccionados.",
-                cohortA_count: rowsA.length,
-                cohortB_count: rowsB.length,
-            }), { status: 400, headers: { "Content-Type": "application/json" } });
+                const params = [
+                    ADMIN_PHONE,
+                    effectiveStationIds,
+                    NO_DEDUP_CABILDO_IDS,
+                    ...where.params,
+                ];
+
+                const res = await query(sql, params);
+                const rows = res.rows as Row[];
+
+                return {
+                    index,
+                    group: g,
+                    label: labelForGroup(g),
+                    rows,
+                };
+            })
+        );
+
+        const emptyGroups = groupDatas.filter((g) => !g.rows.length);
+        if (emptyGroups.length) {
+            return new Response(
+                JSON.stringify({
+                    error: `No hay suficientes datos para estos grupos: ${emptyGroups.map((g) => g.label).join(" || ")}`,
+                }),
+                { status: 400, headers: { "Content-Type": "application/json" } }
+            );
         }
 
-        const allIds = Array.from(new Set([...rowsA, ...rowsB].map((r) => r.idcomentario)));
+        const allIds = Array.from(new Set(groupDatas.flatMap((g) => g.rows.map((r) => r.idcomentario))));
 
         const embRes = await query(
             `
-      SELECT idcomentario, embedding
-      FROM comentario_embeddings
-      WHERE idcomentario = ANY($1::int[])
-        AND pipeline_version = $2
-        AND model = $3
-      `,
+            SELECT idcomentario, embedding
+            FROM comentario_embeddings
+            WHERE idcomentario = ANY($1::int[])
+              AND pipeline_version = $2
+              AND model = $3
+            `,
             [allIds, EMBEDDING_PIPELINE_VERSION, EMBEDDING_MODEL]
         );
 
@@ -222,100 +323,64 @@ export const GET = async (req: Request) => {
             if (vec) embMap.set(r.idcomentario, vec);
         }
 
-        const rowsA_embedded = rowsA.filter((r) => embMap.has(r.idcomentario));
-        const rowsB_embedded = rowsB.filter((r) => embMap.has(r.idcomentario));
+        const withEmbeddings = groupDatas.map((g) => ({
+            ...g,
+            rows_embedded: g.rows.filter((r) => embMap.has(r.idcomentario)),
+        }));
 
-        if (!rowsA_embedded.length || !rowsB_embedded.length) {
-            return new Response(JSON.stringify({
-                error: "Not enough embedded comments to compare",
-                hint: "Run the embeddings backfill and retry.",
-                cohortA_total: rowsA.length,
-                cohortB_total: rowsB.length,
-                cohortA_embedded: rowsA_embedded.length,
-                cohortB_embedded: rowsB_embedded.length,
-            }), { status: 409, headers: { "Content-Type": "application/json" } });
+        const emptyEmbedded = withEmbeddings.filter((g) => !g.rows_embedded.length);
+        if (emptyEmbedded.length) {
+            return new Response(
+                JSON.stringify({
+                    error: `No hay suficientes comentarios embebidos para estos grupos: ${emptyEmbedded.map((g) => g.label).join(" || ")}`,
+                }),
+                { status: 409, headers: { "Content-Type": "application/json" } }
+            );
         }
 
-        const pickRepresentatives = (rows: Row[], k = 10) => {
-            const byStation = new Map<number, Row[]>();
-            for (const r of rows) {
-                byStation.set(r.idestacion, [...(byStation.get(r.idestacion) ?? []), r]);
-            }
-
-            const out: Record<number, { estacion: string; samples: { id: number; text: string }[] }> = {};
-            for (const [sid, list] of byStation.entries()) {
-                const vectors = list.map((r) => embMap.get(r.idcomentario)!);
-
-                const dim = vectors[0].length;
-                const centroid = new Array(dim).fill(0);
-                for (const v of vectors) for (let i = 0; i < dim; i++) centroid[i] += v[i];
-                for (let i = 0; i < dim; i++) centroid[i] /= vectors.length;
-
-                const ranked = list
-                    .map((r, idx) => ({ r, score: cosine(centroid, vectors[idx]) }))
-                    .sort((x, y) => y.score - x.score)
-                    .slice(0, k)
-                    .map((x) => ({ id: x.r.idcomentario, text: String(x.r.comentario).slice(0, 1200) }));
-
-                out[sid] = { estacion: list[0].estacion, samples: ranked };
-            }
-            return out;
-        };
-
-        const repsA = pickRepresentatives(rowsA_embedded, 10);
-        const repsB = pickRepresentatives(rowsB_embedded, 10);
+        const reps = withEmbeddings.map((g) => ({
+            id: g.index + 1,
+            label: g.label,
+            filters: g.group,
+            representative_comments: pickRepresentatives(g.rows_embedded, embMap, 10),
+            total_comments: g.rows.length,
+            embedded_comments: g.rows_embedded.length,
+        }));
 
         const system = `
 Eres un analista. Responde en español.
-Compara dos cohortes de comentarios de participantes por estación (cada estación es una pregunta distinta).
-Devuelve SOLO JSON ESTRICTO (sin markdown, sin texto extra, sin claves adicionales).
+Comparas múltiples grupos de comentarios de participantes por estación.
 
-Contexto de las estaciones (preguntas):
-- Estación 1: "¿Qué te choca o te frustra de vivir en este país? ¿Y qué te da esperanza o te hace sentir que sí se puede?"
-- Estación 2: "¿Crees que el lugar y las condiciones en las que nacimos marcan lo que podemos lograr? ¿Cómo podemos convivir y construir con gente que piensa distinto?"
-- Estación 3: "Si fueras presidente, ¿qué harías para no decepcionar a tu generación? ¿Cuáles serían tus prioridades?"
+Devuelve SOLO JSON ESTRICTO.
 
 Reglas:
-- Tu base de verdad son los ejemplos/representantes provistos. No inventes datos no presentes.
-- Sé cuidadoso: son extractos representativos, no una muestra estadística representativa.
-- No hagas afirmaciones excesivas ni concluyentes sobre “la sociedad” o “la población”.
-- Las posibles razones deben formularse como hipótesis (no como hechos).
-- En "evidence", usa SOLO citas textuales breves (<= 200 caracteres) tomadas de los ejemplos proporcionados.
-- Si una estación tiene poca evidencia o está sesgada por pocos ejemplos, indícalo como limitación.
-- Si no hay suficiente evidencia para una afirmación, dilo explícitamente.
-
-Tono:
-- Claro, neutral y analítico.
+- Compara TODOS los grupos entre sí.
+- No inventes datos.
+- Sé prudente: son comentarios representativos, no una muestra estadística representativa.
+- Las posibles razones deben formularse como hipótesis.
+- Usa evidencia breve tomada de los ejemplos proporcionados.
+- Si falta evidencia suficiente, dilo como limitación.
 `;
 
-
         const user = {
-            cohortA_filters: cohortA,
-            cohortB_filters: cohortB,
-            stations: stationIds,
-            cohortA_representative_comments: repsA,
-            cohortB_representative_comments: repsB,
+            comparison_type: "multi_group",
+            groups: reps,
             output_schema: {
                 summary: "string",
-                per_station: [
+                per_group: [
                     {
-                        stationId: "number",
-                        stationName: "string",
-                        cohortA_tendencies: ["string"],
-                        cohortB_tendencies: ["string"],
-                        key_differences: ["string"],
+                        id: "number",
+                        name: "string",
+                        tendencies: ["string"],
+                        differentiators: ["string"],
                         possible_reasons_hypotheses: ["string"],
-                        evidence: {
-                            cohortA_examples: ["short quotes <= 200 chars"],
-                            cohortB_examples: ["short quotes <= 200 chars"]
-                        }
-                    }
+                        evidence: ["string"],
+                    },
                 ],
-                methodology_sources: [
-                    { title: "string", url: "string" }
-                ],
-                limitations: ["string"]
-            }
+                cross_group_findings: ["string"],
+                methodology_sources: [{ title: "string", url: "string" }],
+                limitations: ["string"],
+            },
         };
 
         const completion = await openai_completions(
@@ -336,14 +401,24 @@ Tono:
             { title: "RAG (Lewis et al., 2020) – retrieval-grounded generation", url: "https://arxiv.org/abs/2005.11401" },
         ];
 
-        return new Response(JSON.stringify({
-            cohortA_count: rowsA.length,
-            cohortB_count: rowsB.length,
-            cohortA_embedded: rowsA_embedded.length,
-            cohortB_embedded: rowsB_embedded.length,
-            result: parsed
-        }), { status: 200, headers: { "Content-Type": "application/json" } });
-
+        return new Response(
+            JSON.stringify({
+                result: {
+                    comparison_title: withEmbeddings.map((g) => g.label).join(" vs "),
+                    summary: String(parsed?.summary ?? ""),
+                    groups: Array.isArray(parsed?.per_group) ? parsed.per_group : [],
+                    cross_group_findings: Array.isArray(parsed?.cross_group_findings) ? parsed.cross_group_findings : [],
+                    limitations: Array.isArray(parsed?.limitations) ? parsed.limitations : [],
+                    methodology_sources: parsed.methodology_sources,
+                    source_groups: reps.map((g) => ({
+                        id: g.id,
+                        label: g.label,
+                        filters: g.filters,
+                    })),
+                },
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } }
+        );
     } catch (e) {
         console.error(e);
         return new Response(JSON.stringify({ error: "Error interno del servidor" }), { status: 500 });

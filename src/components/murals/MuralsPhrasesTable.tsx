@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
-import CompareModal, { CompareModalValue } from "./CompareModal";
+import CompareModal, { CompareModalValue, MuralsCompareGroup } from "./CompareModal";
 import { get_substring } from "@/constants/functions";
 
 type Row = {
@@ -22,6 +22,16 @@ type Row = {
     question: string | null;
     photo_url?: string | null;
 };
+
+function encodeGroup(group: MuralsCompareGroup) {
+    const params = new URLSearchParams();
+
+    group.eventId.forEach((v) => params.append("eventId", v));
+    group.regionId.forEach((v) => params.append("regionId", v));
+    group.activityId.forEach((v) => params.append("activityId", v));
+
+    return params.toString();
+}
 
 export default function MuralsPhrasesTable({
     filters,
@@ -164,7 +174,12 @@ export default function MuralsPhrasesTable({
                                             {r.phrase}
                                         </div>
                                         <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>{r.question || "Sin pregunta"}</div>
-                                        <a style={{ fontSize: 12, opacity: 0.7, marginTop: 6, fontWeight: 700, textDecoration: "underline" }} href={r.photo_url || ""} target="_blank" rel="noopener noreferrer">
+                                        <a
+                                            style={{ fontSize: 12, opacity: 0.7, marginTop: 6, fontWeight: 700, textDecoration: "underline" }}
+                                            href={r.photo_url || ""}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                        >
                                             Abrir foto
                                         </a>
                                     </td>
@@ -215,10 +230,9 @@ export default function MuralsPhrasesTable({
                     setCompareOpen(false);
 
                     const params = new URLSearchParams();
-                    params.set("dimension", val.dimension);
-
-                    val.aValues.forEach((x) => params.append("a", x));
-                    val.bValues.forEach((x) => params.append("b", x));
+                    val.groups.forEach((g) => {
+                        params.append("group", encodeGroup(g));
+                    });
 
                     router.push(`/murals/compare?${params.toString()}`);
                 }}

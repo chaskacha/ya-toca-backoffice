@@ -120,6 +120,28 @@ export default function CabildosStationsTable({
     run();
   }, [buildUrl]);
 
+  function encodeGroup(group: {
+    age_group: string[];
+    region: string[];
+    gender: string[];
+    nivelinstruccion: string[];
+    grupoetnico: string[];
+    cabildoId: string[];
+    stationId: string[];
+  }) {
+    const params = new URLSearchParams();
+
+    group.age_group.forEach((v) => params.append("age_group", v));
+    group.region.forEach((v) => params.append("region", v));
+    group.gender.forEach((v) => params.append("gender", v));
+    group.nivelinstruccion.forEach((v) => params.append("nivelinstruccion", v));
+    group.grupoetnico.forEach((v) => params.append("grupoetnico", v));
+    group.cabildoId.forEach((v) => params.append("cabildoId", v));
+    group.stationId.forEach((v) => params.append("stationId", v));
+
+    return params.toString();
+  }
+
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   const Cell = ({ text }: { text?: string }) => (
@@ -308,10 +330,9 @@ export default function CabildosStationsTable({
           setCompareOpen(false);
 
           const params = new URLSearchParams();
-          params.set("dimension", val.dimension);
-
-          val.aValues.forEach((x) => params.append("a", x));
-          val.bValues.forEach((x) => params.append("b", x));
+          val.groups.forEach((g) => {
+            params.append("group", encodeGroup(g));
+          });
 
           router.push(`/cabildos/compare?${params.toString()}`);
         }}

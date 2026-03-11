@@ -1,4 +1,3 @@
-// app/cabildos/compare/CabildosComparisonClient.tsx
 "use client";
 
 import React from "react";
@@ -17,49 +16,37 @@ export default function CabildosComparisonClient() {
     const sp = useSearchParams();
     const router = useRouter();
 
-    const dimension = sp.get("dimension") || "age_group";
-    const a = getAll(sp as any, "a");
-    const b = getAll(sp as any, "b");
+    const groups = React.useMemo(() => getAll(sp, "group"), [sp]);
+    const groupsKey = React.useMemo(() => groups.join("|"), [groups]);
 
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
     const [data, setData] = React.useState<CompareResult | null>(null);
 
-    const buildCompareUrl = React.useCallback(() => {
+    const compareUrl = React.useMemo(() => {
         const params = new URLSearchParams();
-
-        const dimMap: Record<string, { aKey: string; bKey: string }> = {
-            age_group: { aKey: "a_age", bKey: "b_age" },
-            region: { aKey: "a_region", bKey: "b_region" },
-            genero: { aKey: "a_gender", bKey: "b_gender" },
-            nivelinstruccion: { aKey: "a_nivelinstruccion", bKey: "b_nivelinstruccion" },
-            grupoetnico: { aKey: "a_grupoetnico", bKey: "b_grupoetnico" },
-            cabildoId: { aKey: "a_cabildoId", bKey: "b_cabildoId" },
-            stationId: { aKey: "a_stationId", bKey: "b_stationId" },
-        };
-
-        const map = dimMap[dimension] ?? dimMap["age_group"];
-
-        for (const v of a) params.append(map.aKey, v);
-        for (const v of b) params.append(map.bKey, v);
-
+        groups.forEach((g) => params.append("group", g));
         return `/api/cabildos/stations/compare?${params.toString()}`;
-    }, [dimension, a.join("|"), b.join("|")]);
+    }, [groupsKey]);
 
     React.useEffect(() => {
+        let cancelled = false;
+
         const run = async () => {
             try {
                 setLoading(true);
                 setError(null);
                 setData(null);
 
-                if (!a.length || !b.length) {
-                    setError("Faltan valores para comparar (a y b).");
+                if (groups.length < 2) {
+                    setError("Debes seleccionar al menos 2 grupos para comparar.");
                     return;
                 }
 
-                const res = await fetch(buildCompareUrl());
+                const res = await fetch(compareUrl);
                 const json = await res.json();
+
+                if (cancelled) return;
 
                 if (!res.ok) {
                     setError(json?.error || "No se pudo generar la comparación.");
@@ -69,16 +56,22 @@ export default function CabildosComparisonClient() {
                 setData(json?.result ?? null);
             } catch (e) {
                 console.error(e);
-                setError("Error cargando comparación.");
+                if (!cancelled) {
+                    setError("Error cargando comparación.");
+                }
             } finally {
-                setLoading(false);
+                if (!cancelled) {
+                    setLoading(false);
+                }
             }
         };
-        run();
-    }, [buildCompareUrl]);
 
-    const cohortA_label = `Selección 1: ${a.join(", ")}`;
-    const cohortB_label = `Selección 2: ${b.join(", ")}`;
+        run();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [compareUrl, groupsKey]);
 
     return (
         <Wrapper>
@@ -118,7 +111,10 @@ export default function CabildosComparisonClient() {
 
                         {data ? (
                             <>
-                                <ComparisonTable data={data} cohortA_label={cohortA_label} cohortB_label={cohortB_label} />
+                                <ComparisonTable
+                                    data={data}
+                                    title={data.comparison_title || "Comparación de grupos"}
+                                />
                                 <ComparisonChat basis={data} mode="compare" />
                             </>
                         ) : null}
