@@ -4,13 +4,18 @@ import {
     softDeleteAnalysisThread,
 } from "@/lib/ai-history-repository";
 
+type RouteContext = {
+    params: Promise<{ threadId: string }>;
+};
+
 export const GET = async (
     req: Request,
-    { params }: { params: { threadId: string } }
+    context: RouteContext
 ) => {
+    const { threadId } = await context.params;
     try {
         const userId = requireUserIdFromRequest(req);
-        const result = await getAnalysisThreadByIdForUser(params.threadId, userId);
+        const result = await getAnalysisThreadByIdForUser(threadId, userId);
 
         if (!result) {
             return new Response(JSON.stringify({ error: "Thread not found" }), {
@@ -36,11 +41,12 @@ export const GET = async (
 
 export const DELETE = async (
     req: Request,
-    { params }: { params: { threadId: string } }
+    context: RouteContext
 ) => {
+    const { threadId } = await context.params;
     try {
         const userId = requireUserIdFromRequest(req);
-        const ok = await softDeleteAnalysisThread(params.threadId, userId);
+        const ok = await softDeleteAnalysisThread(threadId, userId);
 
         if (!ok) {
             return new Response(JSON.stringify({ error: "Thread not found" }), {
