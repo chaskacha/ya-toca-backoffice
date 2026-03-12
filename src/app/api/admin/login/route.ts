@@ -9,13 +9,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing credentials" }, { status: 400 });
     }
 
-    const validPassword = ADMIN_USERS[username as keyof typeof ADMIN_USERS];
+    const user = ADMIN_USERS[username as keyof typeof ADMIN_USERS];
 
-    if (!validPassword || validPassword !== password) {
+    if (!user || user.password !== password) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({
+      ok: true,
+      user: {
+        id: user.id,
+        username,
+      },
+    });
   } catch (err) {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }

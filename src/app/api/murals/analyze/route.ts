@@ -1,6 +1,8 @@
-// app/api/murals/analyze/route.ts
 import { query } from "@/lib/db";
 import { openai_completions } from "@/constants/openai";
+import { createAnalysisThread } from "@/lib/ai-history-repository";
+import { requireUserIdFromRequest } from "@/lib/ai-history-auth";
+import { getStarterMessage } from "@/lib/analysis-prompts";
 
 function getMultiInt(sp: URLSearchParams, key: string) {
     return sp.getAll(key).filter((x) => /^\d+$/.test(x)).map(Number);
@@ -11,13 +13,10 @@ type RowPhrase = {
     created_at: string;
     phrase: string;
     question: string | null;
-
     region_id: number | null;
     region_name: string | null;
-
     event_id: number | null;
     event_name: string | null;
-
     activity_id: number | null;
     activity_name: string | null;
 };
@@ -28,22 +27,27 @@ function cleanText(s: any, max = 900) {
     return t.length > max ? t.slice(0, max) : t;
 }
 
+function buildAnalysisTitle(filters: {
+    regionIds: number[];
+    eventIds: number[];
+    activityIds: number[];
+}) {
+    const parts: string[] = ["Análisis murales"];
+    if (filters.regionIds.length) parts.push(`Regiones ${filters.regionIds.join(", ")}`);
+    if (filters.eventIds.length) parts.push(`Eventos ${filters.eventIds.join(", ")}`);
+    if (filters.activityIds.length) parts.push(`Actividades ${filters.activityIds.join(", ")}`);
+    return parts.join(" · ");
+}
+
 export const GET = async (req: Request) => {
     try {
+        const userId = requireUserIdFromRequest(req);
         const sp = new URL(req.url).searchParams;
 
         const regionIds = getMultiInt(sp, "regionId");
         const eventIds = getMultiInt(sp, "eventId");
         const activityIds = getMultiInt(sp, "activityId");
 
-        /**
-         * ✅ Schema reality:
-         * mural_phrases.ph.id_activity -> activities.id
-         * activities.id_event -> events.id
-         * events.id_region (or idregion) -> regiones.id
-         *
-         * So region/event come THROUGH activities, not from mural_phrases.
-         */
         const sql = `
       SELECT
         ph.id,
@@ -69,7 +73,6 @@ export const GET = async (req: Request) => {
         (ph.clean_text IS NOT NULL OR ph.raw_text IS NOT NULL)
         AND btrim(COALESCE(ph.clean_text, ph.raw_text)) <> ''
 
-        -- filters
         AND ($1::int[] IS NULL OR array_length($1::int[], 1) IS NULL OR r.id = ANY($1::int[]))
         AND ($2::int[] IS NULL OR array_length($2::int[], 1) IS NULL OR e.id = ANY($2::int[]))
         AND ($3::int[] IS NULL OR array_length($3::int[], 1) IS NULL OR a.id = ANY($3::int[]))
@@ -97,7 +100,6 @@ export const GET = async (req: Request) => {
             );
         }
 
-        // Decide grouping priority (pick the first dimension that has >1 distinct value)
         const distinctRegions = Array.from(new Set(rows.map((r) => String(r.region_id ?? "")))).filter(Boolean);
         const distinctEvents = Array.from(new Set(rows.map((r) => String(r.event_id ?? "")))).filter(Boolean);
         const distinctActivities = Array.from(new Set(rows.map((r) => String(r.activity_id ?? "")))).filter(Boolean);
@@ -193,16 +195,56 @@ Reglas de salida:
         const content = completion.choices?.[0]?.message?.content ?? "{}";
         const parsed = JSON.parse(content);
 
+        const starter = getStarterMessage("murals", "analyze");
+        const title = buildAnalysisTitle({ regionIds, eventIds, activityIds });
+
+        const thread = await createAnalysisThread({
+            userId,
+            moduleSlug: "murals",
+            analysisKind: "analyze",
+            entitySlug: "phrases",
+            title,
+            filtersJson: { regionIds, eventIds, activityIds, grouping: groupMode },
+            resultJson: parsed,
+            metadataJson: {
+                sourceType: "murals/analyze",
+                totalRows: rows.length,
+                grouping: groupMode,
+            },
+            initialMessages: [
+                {
+                    role: "assistant",
+                    content: starter,
+                },
+            ],
+        });
+
         return new Response(
             JSON.stringify({
                 count: rows.length,
                 grouping: groupMode,
                 result: parsed,
+                thread: {
+                    id: thread.id,
+                    title: thread.title,
+                    created_at: thread.created_at,
+                },
+                initialMessages: [
+                    {
+                        role: "assistant",
+                        content: starter,
+                    },
+                ],
             }),
             { status: 200, headers: { "Content-Type": "application/json" } }
         );
-    } catch (e) {
+    } catch (e: any) {
         console.error(e);
+
+        if (e?.message === "UNAUTHORIZED") {
+            return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+        }
+
         return new Response(JSON.stringify({ error: "Error interno del servidor" }), { status: 500 });
     }
 };

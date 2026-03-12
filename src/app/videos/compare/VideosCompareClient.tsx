@@ -4,13 +4,26 @@ import React from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Wrapper from "@/components/basic/wrapper";
 import SafeArea from "@/components/basic/safe-area";
-import VideosChat from "@/components/videos/chat/VideosChat";
+import PersistedAnalysisChat from "@/components/ai-history/PersistedAnalysisChat";
+import { adminFetch } from "@/lib/admin-client";
 
 type CompareResult = {
     summary?: string;
     key_differences?: string[];
     per_group?: any[];
     limitations?: string[];
+};
+
+type SavedThread = {
+    id: string;
+    title: string;
+    created_at: string;
+};
+
+type ApiResponse = {
+    result: CompareResult;
+    thread?: SavedThread | null;
+    initialMessages?: { role: "user" | "assistant"; content: string }[];
 };
 
 export default function VideosCompareClient() {
@@ -20,7 +33,10 @@ export default function VideosCompareClient() {
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
     const [result, setResult] = React.useState<CompareResult | null>(null);
-    const [basis, setBasis] = React.useState<any>(null);
+    const [thread, setThread] = React.useState<SavedThread | null>(null);
+    const [initialMessages, setInitialMessages] = React.useState<
+        { role: "user" | "assistant"; content: string }[]
+    >([]);
 
     const buildUrl = React.useCallback(() => {
         const params = new URLSearchParams();
@@ -31,7 +47,7 @@ export default function VideosCompareClient() {
         if (b) params.set("bEventId", b);
         if (regionId) params.set("regionId", regionId);
         return `/api/videos/compare?${params.toString()}`;
-    }, [sp.toString()]);
+    }, [sp]);
 
     React.useEffect(() => {
         const run = async () => {
@@ -39,18 +55,20 @@ export default function VideosCompareClient() {
                 setLoading(true);
                 setError(null);
                 setResult(null);
-                setBasis(null);
+                setThread(null);
+                setInitialMessages([]);
 
-                const res = await fetch(buildUrl());
-                const json = await res.json();
+                const res = await adminFetch(buildUrl());
+                const json = (await res.json()) as ApiResponse & { error?: string };
 
                 if (!res.ok) {
                     setError(json?.error || "No se pudo generar la comparación.");
                     return;
                 }
 
-                setBasis(json?.basis ?? null);
                 setResult(json?.result ?? null);
+                setThread(json?.thread ?? null);
+                setInitialMessages(Array.isArray(json?.initialMessages) ? json.initialMessages : []);
             } catch (e) {
                 console.error(e);
                 setError("Error cargando comparación.");
@@ -62,11 +80,9 @@ export default function VideosCompareClient() {
     }, [buildUrl]);
 
     const title = React.useMemo(() => {
-        const a = basis?.cohortA?.label;
-        const b = basis?.cohortB?.label;
-        if (a && b) return `${a} vs ${b}`;
+        if (result && (result as any)?.comparison_title) return String((result as any).comparison_title);
         return "Comparación (Videos)";
-    }, [basis]);
+    }, [result]);
 
     return (
         <Wrapper>
@@ -92,7 +108,13 @@ export default function VideosCompareClient() {
                         {result ? (
                             <>
                                 <CompareView data={result} />
-                                {basis ? <VideosChat basis={basis} mode="compare" /> : null}
+                                {thread ? (
+                                    <PersistedAnalysisChat
+                                        threadId={thread.id}
+                                        title="Chat (basado en la comparación guardada)"
+                                        initialMessages={initialMessages}
+                                    />
+                                ) : null}
                             </>
                         ) : null}
                     </>
@@ -104,7 +126,7 @@ export default function VideosCompareClient() {
 
 function CompareView({ data }: { data: any }) {
     return (
-        <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 14, paddingBottom: 380 }}>
             {data?.summary ? (
                 <Card title="Resumen">
                     <div style={{ lineHeight: 1.5 }}>{String(data.summary)}</div>
@@ -134,7 +156,6 @@ function CompareView({ data }: { data: any }) {
                                     {g.group_label || `Grupo ${idx + 1}`}
                                 </div>
 
-                                {/* THEMES */}
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                                     <div>
                                         <div style={{ fontWeight: 800, marginBottom: 6 }}>Temas (Cohorte A)</div>
@@ -163,7 +184,6 @@ function CompareView({ data }: { data: any }) {
                                     </div>
                                 </div>
 
-                                {/* DIFFERENCES */}
                                 <div style={{ height: 10 }} />
                                 <div>
                                     <div style={{ fontWeight: 800, marginBottom: 6 }}>Diferencias clave</div>
@@ -178,17 +198,10 @@ function CompareView({ data }: { data: any }) {
                                     )}
                                 </div>
 
-                                {/* EVIDENCE */}
                                 <div style={{ height: 10 }} />
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                                    <QuotesBlock
-                                        title="Evidencia (A)"
-                                        quotes={g?.evidence?.cohortA_examples}
-                                    />
-                                    <QuotesBlock
-                                        title="Evidencia (B)"
-                                        quotes={g?.evidence?.cohortB_examples}
-                                    />
+                                    <QuotesBlock title="Evidencia (A)" quotes={g?.evidence?.cohortA_examples} />
+                                    <QuotesBlock title="Evidencia (B)" quotes={g?.evidence?.cohortB_examples} />
                                 </div>
                             </div>
                         ))}
@@ -224,6 +237,7 @@ function Bullets({ items }: { items: any[] }) {
         </ul>
     );
 }
+
 function QuotesBlock({ title, quotes }: { title: string; quotes: any }) {
     const arr = Array.isArray(quotes) ? quotes : [];
     return (

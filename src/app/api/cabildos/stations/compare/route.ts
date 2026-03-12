@@ -1,5 +1,8 @@
 import { query } from "@/lib/db";
 import { openai_completions, EMBEDDING_MODEL, EMBEDDING_PIPELINE_VERSION } from "@/constants/openai";
+import { createAnalysisThread } from "@/lib/ai-history-repository";
+import { requireUserIdFromRequest } from "@/lib/ai-history-auth";
+import { getStarterMessage } from "@/lib/analysis-prompts";
 
 const ADMIN_PHONE = "51991515939";
 const DEFAULT_STATIONS = [11, 12, 13, 14];
@@ -183,6 +186,7 @@ function labelForGroup(g: CompareGroup) {
 
 export const GET = async (req: Request) => {
     try {
+        const userId = requireUserIdFromRequest(req);
         const { searchParams } = new URL(req.url);
         const groups = getGroups(searchParams);
 
@@ -202,77 +206,74 @@ export const GET = async (req: Request) => {
         }
 
         const baseSql = `
-        WITH
-        raw AS (
-            SELECT
-                p.id,
-                p.telefono,
-                p.id_cabildo,
-                p.region,
-                p.genero,
-                p.age_group,
-                p.nivelinstruccion,
-                p.grupoetnico,
-                p.fechacreacion
-            FROM participantes p
-            WHERE
-                p.id_cabildo IS NOT NULL
-                AND p.telefono IS NOT NULL
-                AND btrim(p.telefono) <> ''
-                AND p.telefono <> $1
-        ),
-        dedup AS (
-            SELECT *
-            FROM raw
-            WHERE id_cabildo = ANY($3::int[])
+      WITH
+      raw AS (
+        SELECT
+          p.id,
+          p.telefono,
+          p.id_cabildo,
+          p.region,
+          p.genero,
+          p.age_group,
+          p.nivelinstruccion,
+          p.grupoetnico,
+          p.fechacreacion
+        FROM participantes p
+        WHERE
+          p.id_cabildo IS NOT NULL
+          AND p.telefono IS NOT NULL
+          AND btrim(p.telefono) <> ''
+          AND p.telefono <> $1
+      ),
+      dedup AS (
+        SELECT *
+        FROM raw
+        WHERE id_cabildo = ANY($3::int[])
 
-            UNION ALL
+        UNION ALL
 
-            SELECT DISTINCT ON (telefono)
-                *
-            FROM raw
-            WHERE id_cabildo <> ALL($3::int[])
-            ORDER BY telefono, fechacreacion ASC, id ASC
-        ),
-        base AS (
-            SELECT d.*
-            FROM dedup d
-        ),
-        joined AS (
-            SELECT
-                b.*,
-                cp.idcomentario,
-                cm.texto AS comentario,
-                cm.idestacion,
-                e.nombreestacion AS estacion
-            FROM base b
-            JOIN comentariosparticipantes cp ON cp.idparticipante = b.id
-            JOIN comentarios cm ON cm.id = cp.idcomentario
-            JOIN estaciones e ON e.id = cm.idestacion
-            WHERE cm.texto IS NOT NULL
-              AND btrim(cm.texto) <> ''
-        )
-        `;
+        SELECT DISTINCT ON (telefono)
+          *
+        FROM raw
+        WHERE id_cabildo <> ALL($3::int[])
+        ORDER BY telefono, fechacreacion ASC, id ASC
+      ),
+      base AS (
+        SELECT d.*
+        FROM dedup d
+      ),
+      joined AS (
+        SELECT
+          b.*,
+          cp.idcomentario,
+          cm.texto AS comentario,
+          cm.idestacion,
+          e.nombreestacion AS estacion
+        FROM base b
+        JOIN comentariosparticipantes cp ON cp.idparticipante = b.id
+        JOIN comentarios cm ON cm.id = cp.idcomentario
+        JOIN estaciones e ON e.id = cm.idestacion
+        WHERE cm.texto IS NOT NULL
+          AND btrim(cm.texto) <> ''
+      )
+    `;
 
         const buildSql = (whereSql: string) => `
-    ${baseSql}
-    SELECT
+      ${baseSql}
+      SELECT
         idcomentario, comentario, idestacion, estacion,
         region, genero, age_group, nivelinstruccion, grupoetnico, id_cabildo
-    FROM joined b
-    WHERE 1=1
-      AND b.idestacion = ANY($2::int[])
-      ${whereSql}
-    LIMIT 1200
-`;
+      FROM joined b
+      WHERE 1=1
+        AND b.idestacion = ANY($2::int[])
+        ${whereSql}
+      LIMIT 1200
+    `;
 
         const groupDatas = await Promise.all(
             groups.map(async (g, index) => {
                 const where = buildWhereClause(g, 3);
-
-                const effectiveStationIds =
-                    g.stationId.length > 0 ? g.stationId : DEFAULT_STATIONS;
-
+                const effectiveStationIds = g.stationId.length > 0 ? g.stationId : DEFAULT_STATIONS;
                 const sql = buildSql(where.sql);
 
                 const params = [
@@ -308,12 +309,12 @@ export const GET = async (req: Request) => {
 
         const embRes = await query(
             `
-            SELECT idcomentario, embedding
-            FROM comentario_embeddings
-            WHERE idcomentario = ANY($1::int[])
-              AND pipeline_version = $2
-              AND model = $3
-            `,
+        SELECT idcomentario, embedding
+        FROM comentario_embeddings
+        WHERE idcomentario = ANY($1::int[])
+          AND pipeline_version = $2
+          AND model = $3
+      `,
             [allIds, EMBEDDING_PIPELINE_VERSION, EMBEDDING_MODEL]
         );
 
@@ -401,26 +402,68 @@ Reglas:
             { title: "RAG (Lewis et al., 2020) – retrieval-grounded generation", url: "https://arxiv.org/abs/2005.11401" },
         ];
 
+        const result = {
+            comparison_title: withEmbeddings.map((g) => g.label).join(" vs "),
+            summary: String(parsed?.summary ?? ""),
+            groups: Array.isArray(parsed?.per_group) ? parsed.per_group : [],
+            cross_group_findings: Array.isArray(parsed?.cross_group_findings) ? parsed.cross_group_findings : [],
+            limitations: Array.isArray(parsed?.limitations) ? parsed.limitations : [],
+            methodology_sources: parsed.methodology_sources,
+            source_groups: reps.map((g) => ({
+                id: g.id,
+                label: g.label,
+                filters: g.filters,
+            })),
+        };
+
+        const starter = getStarterMessage("cabildos", "compare");
+
+        const thread = await createAnalysisThread({
+            userId,
+            moduleSlug: "cabildos",
+            analysisKind: "compare",
+            entitySlug: "stations",
+            title: result.comparison_title || "Comparación de cabildos",
+            filtersJson: {
+                groups,
+            },
+            resultJson: result,
+            metadataJson: {
+                sourceType: "cabildos/stations/compare",
+                totalGroups: groups.length,
+            },
+            initialMessages: [
+                {
+                    role: "assistant",
+                    content: starter,
+                },
+            ],
+        });
+
         return new Response(
             JSON.stringify({
-                result: {
-                    comparison_title: withEmbeddings.map((g) => g.label).join(" vs "),
-                    summary: String(parsed?.summary ?? ""),
-                    groups: Array.isArray(parsed?.per_group) ? parsed.per_group : [],
-                    cross_group_findings: Array.isArray(parsed?.cross_group_findings) ? parsed.cross_group_findings : [],
-                    limitations: Array.isArray(parsed?.limitations) ? parsed.limitations : [],
-                    methodology_sources: parsed.methodology_sources,
-                    source_groups: reps.map((g) => ({
-                        id: g.id,
-                        label: g.label,
-                        filters: g.filters,
-                    })),
+                result,
+                thread: {
+                    id: thread.id,
+                    title: thread.title,
+                    created_at: thread.created_at,
                 },
+                initialMessages: [
+                    {
+                        role: "assistant",
+                        content: starter,
+                    },
+                ],
             }),
             { status: 200, headers: { "Content-Type": "application/json" } }
         );
-    } catch (e) {
+    } catch (e: any) {
         console.error(e);
+
+        if (e?.message === "UNAUTHORIZED") {
+            return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+        }
+
         return new Response(JSON.stringify({ error: "Error interno del servidor" }), { status: 500 });
     }
 };

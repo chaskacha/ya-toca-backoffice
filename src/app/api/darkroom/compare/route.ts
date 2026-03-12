@@ -1,6 +1,8 @@
-// app/api/darkroom/compare/route.ts
 import { query } from "@/lib/db";
 import { openai_completions } from "@/constants/openai";
+import { createAnalysisThread } from "@/lib/ai-history-repository";
+import { requireUserIdFromRequest } from "@/lib/ai-history-auth";
+import { getStarterMessage } from "@/lib/analysis-prompts";
 
 type Dimension = "age_group" | "gender";
 
@@ -14,11 +16,6 @@ function isAllowedDimension(x: string): x is Dimension {
 
 const clamp01 = (n: number) => (n < 0 ? 0 : n > 1 ? 1 : n);
 
-/**
- * Reduce tokens: pick top diffs per question (still enough for analysis).
- * Keeps the full "questions" payload for your table, but sends a compact
- * "analysis_basis" to the LLM.
- */
 function buildAnalysisBasis(questions: any[], maxOptionsPerQuestion = 5) {
     return questions.map((q) => {
         const opts = Array.isArray(q.options) ? q.options : [];
@@ -42,6 +39,7 @@ function buildAnalysisBasis(questions: any[], maxOptionsPerQuestion = 5) {
 
 export const GET = async (req: Request) => {
     try {
+        const userId = requireUserIdFromRequest(req);
         const { searchParams } = new URL(req.url);
 
         const dimRaw = String(searchParams.get("dimension") ?? "");
@@ -62,12 +60,6 @@ export const GET = async (req: Request) => {
             });
         }
 
-        // Optional switch to disable AI when needed (cost / speed)
-        // Default = ON
-        const aiParam = String(searchParams.get("ai") ?? "1").trim();
-        const aiEnabled = aiParam !== "0" && aiParam.toLowerCase() !== "false";
-
-        // CTE: cuenta por pregunta/opción para cada cohorte
         const sql = `
       WITH
       cohort_a AS (
@@ -116,7 +108,6 @@ export const GET = async (req: Request) => {
 
         const res = await query(sql, [aValues, bValues]);
 
-        // Shape: agrupar por pregunta para el frontend
         const byQ = new Map<number, any>();
 
         for (const r of res.rows as any[]) {
@@ -149,7 +140,7 @@ export const GET = async (req: Request) => {
                 bCount,
                 aPct,
                 bPct,
-                diffPct: aPct - bPct, // positivo => más en A
+                diffPct: aPct - bPct,
             };
 
             obj.cohortA.options.push({ optionId: opt.optionId, optionText: opt.optionText, count: aCount, pct: aPct });
@@ -158,16 +149,9 @@ export const GET = async (req: Request) => {
         }
 
         const questions = Array.from(byQ.values());
+        const analysis_basis = buildAnalysisBasis(questions, 5);
 
-        // --- AI ANALYSIS (stats -> text) ---
-        let ai_analysis: any = null;
-        let ai_error: string | null = null;
-
-        if (aiEnabled) {
-            try {
-                const analysis_basis = buildAnalysisBasis(questions, 5);
-
-                const system = `
+        const system = `
 Eres un analista de encuestas. Responde en español.
 Vas a comparar dos cohortes usando SOLO datos agregados (porcentajes por opción).
 
@@ -176,66 +160,105 @@ Reglas:
 - No atribuyas causas psicológicas. Si propones razones, deben ser hipótesis y explícitas.
 - No generalices a toda la población. Habla solo de diferencias observadas en estos datos.
 - Si el total de alguna cohorte en una pregunta es 0, dilo como limitación.
-- Devuelve SOLO JSON ESTRICTO (sin markdown, sin texto extra).
+- Devuelve SOLO JSON ESTRICTO.
 `;
 
-                const user = {
-                    dimension: dimRaw,
-                    cohortA_values: aValues,
-                    cohortB_values: bValues,
-                    analysis_basis, // compact to reduce tokens
-                    output_schema: {
-                        summary: "string",
-                        per_question: [
-                            {
-                                questionId: "number",
-                                questionText: "string",
-                                main_differences: ["string"],
-                                notable_similarities: ["string"],
-                                hypotheses: ["string"],
-                                caution_notes: ["string"],
-                            },
-                        ],
-                        limitations: ["string"],
+        const user = {
+            dimension: dimRaw,
+            cohortA_values: aValues,
+            cohortB_values: bValues,
+            analysis_basis,
+            output_schema: {
+                summary: "string",
+                per_question: [
+                    {
+                        questionId: "number",
+                        questionText: "string",
+                        main_differences: ["string"],
+                        notable_similarities: ["string"],
+                        hypotheses: ["string"],
+                        caution_notes: ["string"],
                     },
-                };
+                ],
+                limitations: ["string"],
+            },
+        };
 
-                const completion = await openai_completions(
-                    "gpt-4.1-mini",
-                    [
-                        { role: "system", content: system },
-                        { role: "user", content: JSON.stringify(user) },
-                    ],
-                    { type: "json_object" }
-                );
+        const completion = await openai_completions(
+            "gpt-4.1-mini",
+            [
+                { role: "system", content: system },
+                { role: "user", content: JSON.stringify(user) },
+            ],
+            { type: "json_object" }
+        );
 
-                const content = completion.choices?.[0]?.message?.content ?? "{}";
-                ai_analysis = JSON.parse(content);
+        const content = completion.choices?.[0]?.message?.content ?? "{}";
+        const ai_analysis = JSON.parse(content);
 
-                // helpful sources (same style as your cabildos endpoint)
-                ai_analysis.methodology_sources = [
-                    { title: "Survey analysis basics (difference in proportions)", url: "https://en.wikipedia.org/wiki/Two-proportion_z-test" },
-                    { title: "Avoiding ecological fallacy (interpreting aggregates)", url: "https://en.wikipedia.org/wiki/Ecological_fallacy" },
-                ];
-            } catch (e: any) {
-                console.error("AI analysis error:", e);
-                ai_error = "AI analysis failed";
-            }
-        }
+        ai_analysis.methodology_sources = [
+            { title: "Survey analysis basics (difference in proportions)", url: "https://en.wikipedia.org/wiki/Two-proportion_z-test" },
+            { title: "Avoiding ecological fallacy", url: "https://en.wikipedia.org/wiki/Ecological_fallacy" },
+        ];
+
+        const result = {
+            dimension: dimRaw,
+            cohortA: { values: aValues },
+            cohortB: { values: bValues },
+            questions,
+            ai_analysis,
+        };
+
+        const title = `DarkRoom · ${dimRaw} · ${aValues.join(", ")} vs ${bValues.join(", ")}`;
+        const starter = getStarterMessage("darkroom", "compare");
+
+        const thread = await createAnalysisThread({
+            userId,
+            moduleSlug: "darkroom",
+            analysisKind: "compare",
+            entitySlug: "responses",
+            title,
+            filtersJson: { dimension: dimRaw, a: aValues, b: bValues },
+            resultJson: result,
+            metadataJson: {
+                sourceType: "darkroom/compare",
+                dimension: dimRaw,
+            },
+            initialMessages: [
+                {
+                    role: "assistant",
+                    content: starter,
+                },
+            ],
+        });
 
         return new Response(
             JSON.stringify({
-                dimension: dimRaw,
-                cohortA: { values: aValues },
-                cohortB: { values: bValues },
-                questions,              // full stats for your table
-                ai_analysis,            // <-- what your chat UI should render
-                ai_error,               // if any
+                result,
+                thread: {
+                    id: thread.id,
+                    title: thread.title,
+                    created_at: thread.created_at,
+                },
+                initialMessages: [
+                    {
+                        role: "assistant",
+                        content: starter,
+                    },
+                ],
             }),
             { status: 200, headers: { "Content-Type": "application/json" } }
         );
-    } catch (e) {
+    } catch (e: any) {
         console.error(e);
+
+        if (e?.message === "UNAUTHORIZED") {
+            return new Response(JSON.stringify({ error: "Unauthorized" }), {
+                status: 401,
+                headers: { "Content-Type": "application/json" },
+            });
+        }
+
         return new Response(JSON.stringify({ error: "Error interno del servidor" }), {
             status: 500,
             headers: { "Content-Type": "application/json" },

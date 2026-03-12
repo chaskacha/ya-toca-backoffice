@@ -4,16 +4,15 @@ import React from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Wrapper from "@/components/basic/wrapper";
 import SafeArea from "@/components/basic/safe-area";
-import ComparisonChatDarkRoom from "@/components/darkroom/ComparisonChatDarkRoom";
+import PersistedAnalysisChat from "@/components/ai-history/PersistedAnalysisChat";
+import { adminFetch } from "@/lib/admin-client";
 
 type AnalyzeGroup = {
     label: string;
     count: number;
-
-    dominant_themes?: string[];
-    emotions?: string[];
-    narratives?: string[];
-    actionable_opportunities?: string[];
+    top_choices?: string[];
+    notable_gaps_or_skews?: string[];
+    interpretation_hypotheses?: string[];
     evidence?: string[];
 };
 
@@ -23,6 +22,18 @@ type AnalyzeResult = {
     limitations?: string[];
 };
 
+type SavedThread = {
+    id: string;
+    title: string;
+    created_at: string;
+};
+
+type ApiResponse = {
+    result: AnalyzeResult;
+    thread?: SavedThread | null;
+    initialMessages?: { role: "user" | "assistant"; content: string }[];
+};
+
 export default function DarkRoomAnalysisClient() {
     const sp = useSearchParams();
     const router = useRouter();
@@ -30,6 +41,10 @@ export default function DarkRoomAnalysisClient() {
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
     const [data, setData] = React.useState<AnalyzeResult | null>(null);
+    const [thread, setThread] = React.useState<SavedThread | null>(null);
+    const [initialMessages, setInitialMessages] = React.useState<
+        { role: "user" | "assistant"; content: string }[]
+    >([]);
 
     const multiKeys = ["questionId", "optionId", "age", "gender", "regionId"] as const;
 
@@ -42,7 +57,7 @@ export default function DarkRoomAnalysisClient() {
             });
         }
         return `/api/darkroom/analyze?${params.toString()}`;
-    }, [sp.toString()]);
+    }, [sp]);
 
     React.useEffect(() => {
         const run = async () => {
@@ -50,9 +65,11 @@ export default function DarkRoomAnalysisClient() {
                 setLoading(true);
                 setError(null);
                 setData(null);
+                setThread(null);
+                setInitialMessages([]);
 
-                const res = await fetch(buildAnalyzeUrl());
-                const json = await res.json();
+                const res = await adminFetch(buildAnalyzeUrl());
+                const json = (await res.json()) as ApiResponse & { error?: string };
 
                 if (!res.ok) {
                     setError(json?.error || "No se pudo generar el análisis.");
@@ -60,6 +77,8 @@ export default function DarkRoomAnalysisClient() {
                 }
 
                 setData((json?.result ?? null) as AnalyzeResult);
+                setThread(json?.thread ?? null);
+                setInitialMessages(Array.isArray(json?.initialMessages) ? json.initialMessages : []);
             } catch (e) {
                 console.error(e);
                 setError("Error cargando análisis.");
@@ -77,7 +96,7 @@ export default function DarkRoomAnalysisClient() {
             if (values.length) parts.push(`${k}=${values.join(",")}`);
         }
         return parts.length ? parts.join(" · ") : "Sin filtros (global)";
-    }, [sp.toString()]);
+    }, [sp]);
 
     return (
         <Wrapper>
@@ -119,7 +138,13 @@ export default function DarkRoomAnalysisClient() {
                         {data ? (
                             <>
                                 <AnalysisView data={data} />
-                                <ComparisonChatDarkRoom basis={data} mode="analyze" />
+                                {thread ? (
+                                    <PersistedAnalysisChat
+                                        threadId={thread.id}
+                                        title="Chat (basado en el análisis guardado)"
+                                        initialMessages={initialMessages}
+                                    />
+                                ) : null}
                             </>
                         ) : null}
                     </>
@@ -131,12 +156,11 @@ export default function DarkRoomAnalysisClient() {
 
 function AnalysisView({ data }: { data: AnalyzeResult }) {
     const [showRaw, setShowRaw] = React.useState(false);
-
     const groups = Array.isArray(data?.groups) ? data.groups : [];
     const limitations = Array.isArray(data?.limitations) ? data.limitations : [];
 
     return (
-        <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 14, paddingBottom: 380 }}>
             {data?.population_summary ? (
                 <Card title="Resumen del grupo filtrado">
                     <div style={{ lineHeight: 1.5 }}>{data.population_summary}</div>
@@ -146,21 +170,18 @@ function AnalysisView({ data }: { data: AnalyzeResult }) {
             {groups.map((g, idx) => (
                 <Card key={idx} title={`${g.label} (${g.count})`}>
                     <Grid2>
-                        <Block title="Temas dominantes" items={g.dominant_themes} empty="Sin temas" />
-                        <Block title="Emociones" items={g.emotions} empty="Sin emociones" />
+                        <Block title="Opciones dominantes" items={g.top_choices} empty="Sin hallazgos" />
+                        <Block title="Sesgos o brechas notables" items={g.notable_gaps_or_skews} empty="Sin hallazgos" />
                     </Grid2>
 
                     <div style={{ height: 10 }} />
 
-                    <Grid2>
-                        <Block title="Narrativas" items={g.narratives} empty="Sin narrativas" />
-                        <Block title="Oportunidades accionables" items={g.actionable_opportunities} empty="Sin oportunidades" />
-                    </Grid2>
+                    <Block title="Hipótesis de interpretación" items={g.interpretation_hypotheses} empty="Sin hipótesis" />
 
                     {Array.isArray(g.evidence) && g.evidence.length ? (
                         <>
                             <div style={{ height: 10 }} />
-                            <Quotes title="Evidencia (citas)" quotes={g.evidence} />
+                            <Quotes title="Evidencia numérica" quotes={g.evidence} />
                         </>
                     ) : (
                         <>
@@ -244,7 +265,7 @@ function Quotes({ title, quotes }: { title: string; quotes: any }) {
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {arr.map((q: any, i: number) => (
                     <div key={i} style={{ border: "1px solid #eee", borderRadius: 10, padding: 10, background: "#fafafa" }}>
-                        <div style={{ fontStyle: "italic", lineHeight: 1.4 }}>"{String(q)}"</div>
+                        <div style={{ lineHeight: 1.4 }}>{String(q)}</div>
                     </div>
                 ))}
             </div>

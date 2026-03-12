@@ -1,5 +1,8 @@
 import { query } from "@/lib/db";
 import { openai_completions } from "@/constants/openai";
+import { createAnalysisThread } from "@/lib/ai-history-repository";
+import { requireUserIdFromRequest } from "@/lib/ai-history-auth";
+import { getStarterMessage } from "@/lib/analysis-prompts";
 
 type CompareGroup = {
     programId?: number | null;
@@ -79,6 +82,7 @@ function labelForGroup(
 
 export const GET = async (req: Request) => {
     try {
+        const userId = requireUserIdFromRequest(req);
         const sp = new URL(req.url).searchParams;
         const groups = getGroups(sp);
 
@@ -110,24 +114,24 @@ export const GET = async (req: Request) => {
         );
 
         const buildSql = (whereSql: string) => `
-            SELECT
-                e.id AS episode_id,
-                e.program_id,
-                p.name_program,
-                e.topic_id,
-                t.topic_name,
-                e.mp3_url,
-                COALESCE(NULLIF(btrim(e.transcript_text), ''), '') AS transcript_text
-            FROM radio_episodes e
-            JOIN radio_programs p ON p.id = e.program_id
-            LEFT JOIN radio_topics t ON t.id = e.topic_id
-            WHERE e.status = 'done'
-              AND e.transcript_text IS NOT NULL
-              AND btrim(e.transcript_text) <> ''
-              AND ${whereSql}
-            ORDER BY e.id DESC
-            LIMIT 120
-        `;
+      SELECT
+        e.id AS episode_id,
+        e.program_id,
+        p.name_program,
+        e.topic_id,
+        t.topic_name,
+        e.mp3_url,
+        COALESCE(NULLIF(btrim(e.transcript_text), ''), '') AS transcript_text
+      FROM radio_episodes e
+      JOIN radio_programs p ON p.id = e.program_id
+      LEFT JOIN radio_topics t ON t.id = e.topic_id
+      WHERE e.status = 'done'
+        AND e.transcript_text IS NOT NULL
+        AND btrim(e.transcript_text) <> ''
+        AND ${whereSql}
+      ORDER BY e.id DESC
+      LIMIT 120
+    `;
 
         const groupDatas = await Promise.all(
             groups.map(async (g, index) => {
@@ -245,12 +249,58 @@ IMPORTANTE:
             ],
         };
 
-        return new Response(JSON.stringify({ result }), {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
+        const starter = getStarterMessage("radio", "compare");
+
+        const thread = await createAnalysisThread({
+            userId,
+            moduleSlug: "radio",
+            analysisKind: "compare",
+            entitySlug: "episodes",
+            title: result.comparison_title || "Comparación de radio",
+            filtersJson: { groups },
+            resultJson: result,
+            metadataJson: {
+                sourceType: "radio/compare",
+                totalGroups: groups.length,
+            },
+            initialMessages: [
+                {
+                    role: "assistant",
+                    content: starter,
+                },
+            ],
         });
-    } catch (e) {
+
+        return new Response(
+            JSON.stringify({
+                result,
+                thread: {
+                    id: thread.id,
+                    title: thread.title,
+                    created_at: thread.created_at,
+                },
+                initialMessages: [
+                    {
+                        role: "assistant",
+                        content: starter,
+                    },
+                ],
+            }),
+            {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+            }
+        );
+    } catch (e: any) {
         console.error(e);
+
+        if (e?.message === "UNAUTHORIZED") {
+            return new Response(JSON.stringify({ error: "Unauthorized" }), {
+                status: 401,
+                headers: { "Content-Type": "application/json" },
+            });
+        }
+
         return new Response(JSON.stringify({ error: "Error interno" }), {
             status: 500,
             headers: { "Content-Type": "application/json" },

@@ -4,12 +4,12 @@ import React from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Wrapper from "@/components/basic/wrapper";
 import SafeArea from "@/components/basic/safe-area";
-import RadioComparisonChat from "@/components/radio/RadioComparisonChat";
+import PersistedAnalysisChat from "@/components/ai-history/PersistedAnalysisChat";
+import { adminFetch } from "@/lib/admin-client";
 
 type AnalyzeGroup = {
-    label: string; // e.g., program name or topic name
+    label: string;
     count: number;
-
     dominant_themes?: string[];
     emotions?: string[];
     narratives?: string[];
@@ -23,6 +23,18 @@ type AnalyzeResult = {
     limitations?: string[];
 };
 
+type SavedThread = {
+    id: string;
+    title: string;
+    created_at: string;
+};
+
+type ApiResponse = {
+    result: AnalyzeResult;
+    thread?: SavedThread | null;
+    initialMessages?: { role: "user" | "assistant"; content: string }[];
+};
+
 export default function RadioAnalyzeClient() {
     const sp = useSearchParams();
     const router = useRouter();
@@ -30,6 +42,10 @@ export default function RadioAnalyzeClient() {
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
     const [data, setData] = React.useState<AnalyzeResult | null>(null);
+    const [thread, setThread] = React.useState<SavedThread | null>(null);
+    const [initialMessages, setInitialMessages] = React.useState<
+        { role: "user" | "assistant"; content: string }[]
+    >([]);
 
     const allowedKeys = ["programId", "topicId"] as const;
 
@@ -40,7 +56,7 @@ export default function RadioAnalyzeClient() {
             if (v) params.set(k, v);
         }
         return `/api/radio/analyze?${params.toString()}`;
-    }, [sp.toString()]);
+    }, [sp]);
 
     React.useEffect(() => {
         const run = async () => {
@@ -48,9 +64,11 @@ export default function RadioAnalyzeClient() {
                 setLoading(true);
                 setError(null);
                 setData(null);
+                setThread(null);
+                setInitialMessages([]);
 
-                const res = await fetch(buildAnalyzeUrl());
-                const json = await res.json();
+                const res = await adminFetch(buildAnalyzeUrl());
+                const json = (await res.json()) as ApiResponse & { error?: string };
 
                 if (!res.ok) {
                     setError(json?.error || "No se pudo generar el análisis.");
@@ -58,6 +76,8 @@ export default function RadioAnalyzeClient() {
                 }
 
                 setData((json?.result ?? null) as AnalyzeResult);
+                setThread(json?.thread ?? null);
+                setInitialMessages(Array.isArray(json?.initialMessages) ? json.initialMessages : []);
             } catch (e) {
                 console.error(e);
                 setError("Error cargando análisis.");
@@ -75,7 +95,7 @@ export default function RadioAnalyzeClient() {
             if (v) pairs.push(`${k}=${v}`);
         }
         return pairs.length ? pairs.join(" · ") : "Sin filtros (global)";
-    }, [sp.toString()]);
+    }, [sp]);
 
     return (
         <Wrapper>
@@ -117,7 +137,13 @@ export default function RadioAnalyzeClient() {
                         {data ? (
                             <>
                                 <AnalysisView data={data} />
-                                <RadioComparisonChat basis={data} mode="analyze" />
+                                {thread ? (
+                                    <PersistedAnalysisChat
+                                        threadId={thread.id}
+                                        title="Chat (basado en el análisis guardado)"
+                                        initialMessages={initialMessages}
+                                    />
+                                ) : null}
                             </>
                         ) : null}
                     </>
@@ -134,7 +160,7 @@ function AnalysisView({ data }: { data: AnalyzeResult }) {
     const limitations = Array.isArray(data?.limitations) ? data.limitations : [];
 
     return (
-        <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 14, paddingBottom: 380 }}>
             {data?.population_summary ? (
                 <Card title="Resumen del grupo filtrado">
                     <div style={{ lineHeight: 1.5 }}>{data.population_summary}</div>

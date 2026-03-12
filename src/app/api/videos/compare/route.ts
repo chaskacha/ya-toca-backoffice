@@ -1,18 +1,17 @@
-// app/api/videos/compare/route.ts
 import { query } from "@/lib/db";
 import { openai_completions } from "@/constants/openai";
+import { createAnalysisThread } from "@/lib/ai-history-repository";
+import { requireUserIdFromRequest } from "@/lib/ai-history-auth";
+import { getStarterMessage } from "@/lib/analysis-prompts";
 
 type PhraseRow = {
     id: number;
     created_at: string;
-
     event_id: number;
     name_event: string;
     region_id: number | null;
-
     question: string | null;
     phrase: string;
-
     video_url: string | null;
     start_sec: number | null;
     end_sec: number | null;
@@ -26,6 +25,7 @@ function cleanText(s: any, max = 900) {
 
 export const GET = async (req: Request) => {
     try {
+        const userId = requireUserIdFromRequest(req);
         const { searchParams } = new URL(req.url);
 
         const aRaw = (searchParams.get("aEventId") || "").trim();
@@ -81,7 +81,6 @@ export const GET = async (req: Request) => {
             );
         }
 
-        // group by question (if multiple questions exist), else single bucket
         const distinctQuestions = Array.from(new Set(all.map((x) => String(x.question ?? "")))).filter(Boolean);
         const groupMode: "question" | "global" = distinctQuestions.length > 1 ? "question" : "global";
 
@@ -177,15 +176,71 @@ Reglas de salida:
         const content = completion.choices?.[0]?.message?.content ?? "{}";
         const parsed = JSON.parse(content);
 
+        const result = {
+            comparison_title: `${cohortA_label} vs ${cohortB_label}`,
+            summary: String(parsed?.summary ?? ""),
+            key_differences: Array.isArray(parsed?.key_differences) ? parsed.key_differences : [],
+            per_group: Array.isArray(parsed?.per_group) ? parsed.per_group : [],
+            limitations: Array.isArray(parsed?.limitations) ? parsed.limitations : [],
+            source_groups: [
+                { id: 1, label: cohortA_label, eventId: aEventId },
+                { id: 2, label: cohortB_label, eventId: bEventId },
+            ],
+            methodology_sources: [
+                { title: "OpenAI (LLM) – análisis y síntesis", url: "https://platform.openai.com/" },
+            ],
+        };
+
+        const starter = getStarterMessage("videos", "compare");
+
+        const thread = await createAnalysisThread({
+            userId,
+            moduleSlug: "videos",
+            analysisKind: "compare",
+            entitySlug: "phrases",
+            title: result.comparison_title,
+            filtersJson: { aEventId, bEventId, grouping: groupMode },
+            resultJson: result,
+            metadataJson: {
+                sourceType: "videos/compare",
+                cohortAEventId: aEventId,
+                cohortBEventId: bEventId,
+            },
+            initialMessages: [
+                {
+                    role: "assistant",
+                    content: starter,
+                },
+            ],
+        });
+
         return new Response(
             JSON.stringify({
-                basis, // include grounding for chat
-                result: parsed,
+                result,
+                thread: {
+                    id: thread.id,
+                    title: thread.title,
+                    created_at: thread.created_at,
+                },
+                initialMessages: [
+                    {
+                        role: "assistant",
+                        content: starter,
+                    },
+                ],
             }),
             { status: 200, headers: { "Content-Type": "application/json" } }
         );
-    } catch (e) {
+    } catch (e: any) {
         console.error(e);
+
+        if (e?.message === "UNAUTHORIZED") {
+            return new Response(JSON.stringify({ error: "Unauthorized" }), {
+                status: 401,
+                headers: { "Content-Type": "application/json" },
+            });
+        }
+
         return new Response(JSON.stringify({ error: "Error interno del servidor" }), {
             status: 500,
             headers: { "Content-Type": "application/json" },

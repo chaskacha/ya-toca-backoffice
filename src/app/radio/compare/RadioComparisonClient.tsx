@@ -5,12 +5,25 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Wrapper from "@/components/basic/wrapper";
 import SafeArea from "@/components/basic/safe-area";
 import RadioComparisonTable, { RadioCompareResult } from "@/components/radio/RadioComparisonTable";
-import RadioComparisonChat from "@/components/radio/RadioComparisonChat";
+import PersistedAnalysisChat from "@/components/ai-history/PersistedAnalysisChat";
+import { adminFetch } from "@/lib/admin-client";
 import "./styles.css";
 
 function getAll(sp: URLSearchParams, key: string) {
     return sp.getAll(key).map((x) => x.trim()).filter(Boolean);
 }
+
+type SavedThread = {
+    id: string;
+    title: string;
+    created_at: string;
+};
+
+type ApiResponse = {
+    result: RadioCompareResult;
+    thread?: SavedThread | null;
+    initialMessages?: { role: "user" | "assistant"; content: string }[];
+};
 
 export default function RadioComparisonClient() {
     const sp = useSearchParams();
@@ -22,18 +35,16 @@ export default function RadioComparisonClient() {
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
     const [data, setData] = React.useState<RadioCompareResult | null>(null);
+    const [thread, setThread] = React.useState<SavedThread | null>(null);
+    const [initialMessages, setInitialMessages] = React.useState<
+        { role: "user" | "assistant"; content: string }[]
+    >([]);
 
     const compareUrl = React.useMemo(() => {
         const params = new URLSearchParams();
         for (const v of groups) params.append("group", v);
         return `/api/radio/compare?${params.toString()}`;
-    }, [groupsKey]);
-
-    React.useEffect(() => {
-        console.log("RadioComparisonClient mounted");
-        console.log("groups from URL =>", groups);
-        console.log("API URL =>", compareUrl);
-    }, [groupsKey, compareUrl]);
+    }, [groupsKey, groups]);
 
     React.useEffect(() => {
         let cancelled = false;
@@ -43,18 +54,16 @@ export default function RadioComparisonClient() {
                 setLoading(true);
                 setError(null);
                 setData(null);
+                setThread(null);
+                setInitialMessages([]);
 
                 if (groups.length < 2) {
                     setError("Debes seleccionar al menos 2 grupos para comparar.");
                     return;
                 }
 
-                console.log("fetching =>", compareUrl);
-
-                const res = await fetch(compareUrl);
-                const json = await res.json();
-
-                console.log("compare response =>", json);
+                const res = await adminFetch(compareUrl);
+                const json = (await res.json()) as ApiResponse & { error?: string };
 
                 if (cancelled) return;
 
@@ -64,6 +73,8 @@ export default function RadioComparisonClient() {
                 }
 
                 setData(json?.result ?? null);
+                setThread(json?.thread ?? null);
+                setInitialMessages(Array.isArray(json?.initialMessages) ? json.initialMessages : []);
             } catch (e) {
                 console.error("compare page error =>", e);
                 if (!cancelled) {
@@ -81,7 +92,7 @@ export default function RadioComparisonClient() {
         return () => {
             cancelled = true;
         };
-    }, [groupsKey, compareUrl]);
+    }, [groupsKey, compareUrl, groups.length]);
 
     return (
         <Wrapper>
@@ -125,7 +136,14 @@ export default function RadioComparisonClient() {
                                     data={data}
                                     title={data.comparison_title || "Comparación de grupos"}
                                 />
-                                <RadioComparisonChat basis={data} mode="compare" />
+
+                                {thread ? (
+                                    <PersistedAnalysisChat
+                                        threadId={thread.id}
+                                        title="Chat (basado en la comparación guardada)"
+                                        initialMessages={initialMessages}
+                                    />
+                                ) : null}
                             </>
                         ) : null}
                     </>

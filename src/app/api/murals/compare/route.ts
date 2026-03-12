@@ -1,5 +1,8 @@
 import { query } from "@/lib/db";
 import { openai_completions } from "@/constants/openai";
+import { createAnalysisThread } from "@/lib/ai-history-repository";
+import { requireUserIdFromRequest } from "@/lib/ai-history-auth";
+import { getStarterMessage } from "@/lib/analysis-prompts";
 
 function getMultiInt(sp: URLSearchParams, key: string) {
     return sp.getAll(key).filter((x) => /^\d+$/.test(x)).map(Number);
@@ -14,13 +17,10 @@ type RowPhrase = {
     idphrase: number;
     phrase: string;
     question: string | null;
-
     event_id: number | null;
     event_name: string | null;
-
     region_id: number | null;
     region_name: string | null;
-
     activity_id: number | null;
     activity_name: string | null;
 };
@@ -120,6 +120,7 @@ function labelForGroup(g: CompareGroup) {
 
 export const GET = async (req: Request) => {
     try {
+        const userId = requireUserIdFromRequest(req);
         const sp = new URL(req.url).searchParams;
         const groups = getGroups(sp);
 
@@ -139,29 +140,29 @@ export const GET = async (req: Request) => {
         }
 
         const baseSql = `
-            SELECT
-                ph.id AS idphrase,
-                COALESCE(NULLIF(btrim(ph.clean_text), ''), btrim(ph.raw_text)) AS phrase,
-                NULLIF(btrim(ph.question), '') AS question,
+      SELECT
+        ph.id AS idphrase,
+        COALESCE(NULLIF(btrim(ph.clean_text), ''), btrim(ph.raw_text)) AS phrase,
+        NULLIF(btrim(ph.question), '') AS question,
 
-                r.id AS region_id,
-                r.nombreregion AS region_name,
+        r.id AS region_id,
+        r.nombreregion AS region_name,
 
-                e.id AS event_id,
-                e.name AS event_name,
+        e.id AS event_id,
+        e.name AS event_name,
 
-                a.id AS activity_id,
-                a.name_event AS activity_name
+        a.id AS activity_id,
+        a.name_event AS activity_name
 
-            FROM mural_phrases ph
-            JOIN activities a ON a.id = ph.id_activity
-            LEFT JOIN events e ON e.id = a.id_event
-            LEFT JOIN regiones r ON r.id = e.id_region
+      FROM mural_phrases ph
+      JOIN activities a ON a.id = ph.id_activity
+      LEFT JOIN events e ON e.id = a.id_event
+      LEFT JOIN regiones r ON r.id = e.id_region
 
-            WHERE
-                (ph.clean_text IS NOT NULL OR ph.raw_text IS NOT NULL)
-                AND btrim(COALESCE(ph.clean_text, ph.raw_text)) <> ''
-        `;
+      WHERE
+        (ph.clean_text IS NOT NULL OR ph.raw_text IS NOT NULL)
+        AND btrim(COALESCE(ph.clean_text, ph.raw_text)) <> ''
+    `;
 
         const groupDatas = await Promise.all(
             groups.map(async (g, index) => {
@@ -264,32 +265,72 @@ IMPORTANTE:
 
         const parsed = JSON.parse(completion.choices?.[0]?.message?.content ?? "{}");
 
+        const result = {
+            comparison_title: groupsWithStats.map((g) => g.label).join(" vs "),
+            summary: String(parsed?.summary ?? ""),
+            groups: Array.isArray(parsed?.per_group) ? parsed.per_group : [],
+            cross_group_findings: Array.isArray(parsed?.cross_group_findings)
+                ? parsed.cross_group_findings
+                : [],
+            question_comparability: Array.isArray(parsed?.question_comparability)
+                ? parsed.question_comparability
+                : [],
+            limitations: Array.isArray(parsed?.limitations) ? parsed.limitations : [],
+            source_groups: groupsWithStats.map((g) => ({
+                id: g.index + 1,
+                label: g.label,
+                filters: g.group,
+                total_rows: g.rows.length,
+                top_questions: g.question_stats.slice(0, 5),
+            })),
+        };
+
+        const starter = getStarterMessage("murals", "compare");
+
+        const thread = await createAnalysisThread({
+            userId,
+            moduleSlug: "murals",
+            analysisKind: "compare",
+            entitySlug: "phrases",
+            title: result.comparison_title || "Comparación de murales",
+            filtersJson: { groups },
+            resultJson: result,
+            metadataJson: {
+                sourceType: "murals/compare",
+                totalGroups: groups.length,
+            },
+            initialMessages: [
+                {
+                    role: "assistant",
+                    content: starter,
+                },
+            ],
+        });
+
         return new Response(
             JSON.stringify({
-                result: {
-                    comparison_title: groupsWithStats.map((g) => g.label).join(" vs "),
-                    summary: String(parsed?.summary ?? ""),
-                    groups: Array.isArray(parsed?.per_group) ? parsed.per_group : [],
-                    cross_group_findings: Array.isArray(parsed?.cross_group_findings)
-                        ? parsed.cross_group_findings
-                        : [],
-                    question_comparability: Array.isArray(parsed?.question_comparability)
-                        ? parsed.question_comparability
-                        : [],
-                    limitations: Array.isArray(parsed?.limitations) ? parsed.limitations : [],
-                    source_groups: groupsWithStats.map((g) => ({
-                        id: g.index + 1,
-                        label: g.label,
-                        filters: g.group,
-                        total_rows: g.rows.length,
-                        top_questions: g.question_stats.slice(0, 5),
-                    })),
+                result,
+                thread: {
+                    id: thread.id,
+                    title: thread.title,
+                    created_at: thread.created_at,
                 },
+                initialMessages: [
+                    {
+                        role: "assistant",
+                        content: starter,
+                    },
+                ],
             }),
             { status: 200, headers: { "Content-Type": "application/json" } }
         );
-    } catch (e) {
+    } catch (e: any) {
         console.error(e);
+
+        if (e?.message === "UNAUTHORIZED") {
+            return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+        }
+
         return new Response(JSON.stringify({ error: "Error interno" }), { status: 500 });
     }
 };

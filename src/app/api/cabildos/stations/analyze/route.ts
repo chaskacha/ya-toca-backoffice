@@ -1,8 +1,8 @@
-// app/api/cabildos/stations/analyze/route.ts
 import { query } from "@/lib/db";
-import {
-    openai_completions,
-} from "@/constants/openai";
+import { openai_completions } from "@/constants/openai";
+import { createAnalysisThread } from "@/lib/ai-history-repository";
+import { requireUserIdFromRequest } from "@/lib/ai-history-auth";
+import { getStarterMessage } from "@/lib/analysis-prompts";
 
 const ADMIN_PHONE = "51991515939";
 const DEFAULT_STATIONS = [11, 12, 13, 14, 15];
@@ -13,7 +13,6 @@ type Row = {
     comentario: string;
     idestacion: number;
     estacion: string;
-
     region: string | null;
     genero: string | null;
     age_group: string | null;
@@ -22,12 +21,6 @@ type Row = {
     id_cabildo: number | null;
 };
 
-function getMulti(sp: URLSearchParams, key: string) {
-    return sp
-        .getAll(key)
-        .map((s) => s.trim())
-        .filter(Boolean);
-}
 function getMultiInt(sp: URLSearchParams, key: string) {
     return sp
         .getAll(key)
@@ -123,9 +116,7 @@ function parsePgVector(v: any): number[] | null {
 }
 
 const cosine = (a: number[], b: number[]) => {
-    let dot = 0,
-        na = 0,
-        nb = 0;
+    let dot = 0, na = 0, nb = 0;
     for (let i = 0; i < a.length; i++) {
         dot += a[i] * b[i];
         na += a[i] * a[i];
@@ -138,15 +129,29 @@ const STATION_QUESTION: Record<number, string> = {
     14: `¿Qué te choca o te frustra de vivir en este país? ¿Y qué te da esperanza o te hace sentir que sí se puede?`,
     11: `¿Crees que el lugar y las condiciones en las que nacimos marcan lo que podemos lograr? ¿Cómo podemos convivir y construir con gente que piensa distinto?`,
     12: `Si fueras presidente, ¿qué harías para no decepcionar a tu generación? ¿Cuáles serían tus prioridades?`,
-    13: '¿Cómo podemos convivir y construir con gente que piensa distinto?',
-    15: '¿Qué ya nos toca hacer?'
+    13: "¿Cómo podemos convivir y construir con gente que piensa distinto?",
+    15: "¿Qué ya nos toca hacer?",
 };
+
+function buildAnalysisTitle(filters: ReturnType<typeof buildFiltersFromQuery>, stationIds: number[]) {
+    const parts: string[] = ["Análisis cabildos"];
+
+    if (filters.cabildoIds.length) parts.push(`Cabildo ${filters.cabildoIds.join(", ")}`);
+    if (filters.regions.length) parts.push(`Región ${filters.regions.join(", ")}`);
+    if (filters.genders.length) parts.push(`Género ${filters.genders.join(", ")}`);
+    if (filters.ageGroups.length) parts.push(`Edad ${filters.ageGroups.join(", ")}`);
+    if (filters.niveles.length) parts.push(`Nivel ${filters.niveles.join(", ")}`);
+    if (filters.etnicos.length) parts.push(`Grupo étnico ${filters.etnicos.join(", ")}`);
+    if (stationIds.length) parts.push(`Estaciones ${stationIds.join(", ")}`);
+
+    return parts.join(" · ");
+}
 
 export const GET = async (req: Request) => {
     try {
+        const userId = requireUserIdFromRequest(req);
         const { searchParams } = new URL(req.url);
 
-        // stations (optional)
         const stationIds = (() => {
             const ids = getMultiInt(searchParams, "stationId");
             const finalIds = (ids.length ? ids : DEFAULT_STATIONS).filter((x) =>
@@ -155,129 +160,124 @@ export const GET = async (req: Request) => {
             return finalIds.length ? finalIds : DEFAULT_STATIONS;
         })();
 
-        // single-population filters from current selection (table filters)
         const filters = buildFiltersFromQuery(searchParams);
 
-        // optional: stationId from query (single station)
         const stationIdRaw = (searchParams.get("stationId") || "").trim();
         const stationIdSingle =
             stationIdRaw && /^\d+$/.test(stationIdRaw) ? Number(stationIdRaw) : null;
 
         const baseSql = `
-  WITH
-  raw AS (
-    SELECT
-      p.id,
-      p.telefono,
-      p.id_cabildo,
-      p.region,
-      p.genero,
-      p.age_group,
-      p.nivelinstruccion,
-      p.grupoetnico,
-      p.fechacreacion
-    FROM participantes p
-    WHERE
-      p.id_cabildo IS NOT NULL
-      AND p.telefono IS NOT NULL
-      AND btrim(p.telefono) <> ''
-      AND p.telefono <> $1
-  ),
+      WITH
+      raw AS (
+        SELECT
+          p.id,
+          p.telefono,
+          p.id_cabildo,
+          p.region,
+          p.genero,
+          p.age_group,
+          p.nivelinstruccion,
+          p.grupoetnico,
+          p.fechacreacion
+        FROM participantes p
+        WHERE
+          p.id_cabildo IS NOT NULL
+          AND p.telefono IS NOT NULL
+          AND btrim(p.telefono) <> ''
+          AND p.telefono <> $1
+      ),
 
-  dedup AS (
-    -- A) cabildos sin deduplicación
-    SELECT *
-    FROM raw
-    WHERE id_cabildo = ANY($3::int[])
+      dedup AS (
+        SELECT *
+        FROM raw
+        WHERE id_cabildo = ANY($3::int[])
 
-    UNION ALL
+        UNION ALL
 
-    -- B) resto: dedup por teléfono conservando el más antiguo
-    SELECT DISTINCT ON (telefono)
-      *
-    FROM raw
-    WHERE id_cabildo <> ALL($3::int[])
-    ORDER BY telefono, fechacreacion ASC, id ASC
-  ),
+        SELECT DISTINCT ON (telefono)
+          *
+        FROM raw
+        WHERE id_cabildo <> ALL($3::int[])
+        ORDER BY telefono, fechacreacion ASC, id ASC
+      ),
 
-  base AS (
-    SELECT d.*
-    FROM dedup d
-  ),
+      base AS (
+        SELECT d.*
+        FROM dedup d
+      ),
 
-  joined_participants AS (
-    SELECT
-      cp.idcomentario,
-      cm.texto AS comentario,
-      cm.idestacion,
-      e.nombreestacion AS estacion,
+      joined_participants AS (
+        SELECT
+          cp.idcomentario,
+          cm.texto AS comentario,
+          cm.idestacion,
+          e.nombreestacion AS estacion,
 
-      b.region,
-      b.genero,
-      b.age_group,
-      b.nivelinstruccion,
-      b.grupoetnico,
-      b.id_cabildo
+          b.region,
+          b.genero,
+          b.age_group,
+          b.nivelinstruccion,
+          b.grupoetnico,
+          b.id_cabildo
 
-    FROM base b
-    JOIN comentariosparticipantes cp ON cp.idparticipante = b.id
-    JOIN comentarios cm ON cm.id = cp.idcomentario
-    JOIN estaciones e ON e.id = cm.idestacion
-    WHERE
-      cm.idestacion = ANY($2::int[])
-      AND cm.texto IS NOT NULL
-      AND btrim(cm.texto) <> ''
-  ),
+        FROM base b
+        JOIN comentariosparticipantes cp ON cp.idparticipante = b.id
+        JOIN comentarios cm ON cm.id = cp.idcomentario
+        JOIN estaciones e ON e.id = cm.idestacion
+        WHERE
+          cm.idestacion = ANY($2::int[])
+          AND cm.texto IS NOT NULL
+          AND btrim(cm.texto) <> ''
+      ),
 
-  joined_anonymous AS (
-    SELECT
-      cm.id AS idcomentario,
-      cm.texto AS comentario,
-      cm.idestacion,
-      e.nombreestacion AS estacion,
+      joined_anonymous AS (
+        SELECT
+          cm.id AS idcomentario,
+          cm.texto AS comentario,
+          cm.idestacion,
+          e.nombreestacion AS estacion,
 
-      NULL::text AS region,
-      NULL::text AS genero,
-      NULL::text AS age_group,
-      NULL::text AS nivelinstruccion,
-      NULL::text AS grupoetnico,
-      cm.idcabildo AS id_cabildo
+          NULL::text AS region,
+          NULL::text AS genero,
+          NULL::text AS age_group,
+          NULL::text AS nivelinstruccion,
+          NULL::text AS grupoetnico,
+          cm.idcabildo AS id_cabildo
 
-    FROM comentarios cm
-    JOIN estaciones e ON e.id = cm.idestacion
-    WHERE
-      cm.idcabildo IS NOT NULL
-      AND cm.idestacion = ANY($2::int[])
-      AND cm.texto IS NOT NULL
-      AND btrim(cm.texto) <> ''
-      AND NOT EXISTS (
-        SELECT 1
-        FROM comentariosparticipantes cp
-        WHERE cp.idcomentario = cm.id
+        FROM comentarios cm
+        JOIN estaciones e ON e.id = cm.idestacion
+        WHERE
+          cm.idcabildo IS NOT NULL
+          AND cm.idestacion = ANY($2::int[])
+          AND cm.texto IS NOT NULL
+          AND btrim(cm.texto) <> ''
+          AND NOT EXISTS (
+            SELECT 1
+            FROM comentariosparticipantes cp
+            WHERE cp.idcomentario = cm.id
+          )
+      ),
+
+      joined_all AS (
+        SELECT * FROM joined_participants
+        UNION ALL
+        SELECT * FROM joined_anonymous
       )
-  ),
+    `;
 
-  joined_all AS (
-    SELECT * FROM joined_participants
-    UNION ALL
-    SELECT * FROM joined_anonymous
-  )
-`;
-
-        // where filters for single population
         const where = buildWhereClause(filters, 3);
 
         const sql = `
-  ${baseSql}
-  SELECT
-    idcomentario, comentario, idestacion, estacion,
-    region, genero, age_group, nivelinstruccion, grupoetnico, id_cabildo
-  FROM joined_all b
-  WHERE 1=1
-  ${where.sql}
-  AND ($${3 + where.params.length + 1}::int IS NULL OR b.idestacion = $${3 + where.params.length + 1}::int)
-  LIMIT 2400
-`;
+      ${baseSql}
+      SELECT
+        idcomentario, comentario, idestacion, estacion,
+        region, genero, age_group, nivelinstruccion, grupoetnico, id_cabildo
+      FROM joined_all b
+      WHERE 1=1
+      ${where.sql}
+      AND ($${3 + where.params.length + 1}::int IS NULL OR b.idestacion = $${3 + where.params.length + 1}::int)
+      LIMIT 2400
+    `;
 
         const params = [
             ADMIN_PHONE,
@@ -302,14 +302,13 @@ export const GET = async (req: Request) => {
             );
         }
 
-        // fetch embeddings for these comments
         const allIds = Array.from(new Set(rows.map((r) => r.idcomentario)));
 
         const embRes = await query(
             `
-      SELECT idcomentario, embedding
-      FROM comentario_embeddings
-      WHERE idcomentario = ANY($1::int[])
+        SELECT idcomentario, embedding
+        FROM comentario_embeddings
+        WHERE idcomentario = ANY($1::int[])
       `,
             [allIds]
         );
@@ -334,7 +333,6 @@ export const GET = async (req: Request) => {
             );
         }
 
-        // pick representative comments per station via centroid similarity
         const pickRepresentatives = (rowsIn: Row[], k = 12) => {
             const byStation = new Map<number, Row[]>();
             for (const r of rowsIn) {
@@ -439,6 +437,34 @@ Reglas:
         const content = completion.choices?.[0]?.message?.content ?? "{}";
         const parsed = JSON.parse(content);
 
+        const starter = getStarterMessage("cabildos", "analyze");
+        const title = buildAnalysisTitle(filters, stationIds);
+
+        const thread = await createAnalysisThread({
+            userId,
+            moduleSlug: "cabildos",
+            analysisKind: "analyze",
+            entitySlug: "stations",
+            title,
+            filtersJson: {
+                ...filters,
+                stationIds,
+                stationIdSingle,
+            },
+            resultJson: parsed,
+            metadataJson: {
+                sourceType: "cabildos/stations/analyze",
+                totalComments: rows.length,
+                embeddedComments: rowsEmbedded.length,
+            },
+            initialMessages: [
+                {
+                    role: "assistant",
+                    content: starter,
+                },
+            ],
+        });
+
         return new Response(
             JSON.stringify({
                 count: rows.length,
@@ -446,11 +472,27 @@ Reglas:
                 filters,
                 stationIds,
                 result: parsed,
+                thread: {
+                    id: thread.id,
+                    title: thread.title,
+                    created_at: thread.created_at,
+                },
+                initialMessages: [
+                    {
+                        role: "assistant",
+                        content: starter,
+                    },
+                ],
             }),
             { status: 200, headers: { "Content-Type": "application/json" } }
         );
-    } catch (e) {
+    } catch (e: any) {
         console.error(e);
+
+        if (e?.message === "UNAUTHORIZED") {
+            return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+        }
+
         return new Response(JSON.stringify({ error: "Error interno del servidor" }), {
             status: 500,
         });

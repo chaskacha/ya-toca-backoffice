@@ -1,6 +1,8 @@
-// app/api/radio/analyze/route.ts
 import { query } from "@/lib/db";
 import { openai_completions } from "@/constants/openai";
+import { createAnalysisThread } from "@/lib/ai-history-repository";
+import { requireUserIdFromRequest } from "@/lib/ai-history-auth";
+import { getStarterMessage } from "@/lib/analysis-prompts";
 
 type EpisodeRow = {
     id: number;
@@ -20,8 +22,16 @@ function cleanText(s: any, max = 1400) {
     return t.length > max ? t.slice(0, max) : t;
 }
 
+function buildAnalysisTitle(filters: { programId: number | null; topicId: number | null }) {
+    const parts: string[] = ["Análisis radio"];
+    if (filters.programId) parts.push(`Programa ${filters.programId}`);
+    if (filters.topicId) parts.push(`Tema ${filters.topicId}`);
+    return parts.join(" · ");
+}
+
 export const GET = async (req: Request) => {
     try {
+        const userId = requireUserIdFromRequest(req);
         const { searchParams } = new URL(req.url);
 
         const programIdRaw = (searchParams.get("programId") || "").trim();
@@ -30,7 +40,6 @@ export const GET = async (req: Request) => {
         const topicIdRaw = (searchParams.get("topicId") || "").trim();
         const topicId = topicIdRaw && /^\d+$/.test(topicIdRaw) ? Number(topicIdRaw) : null;
 
-        // 1) Load episodes with transcripts
         const sql = `
       SELECT
         e.id,
@@ -69,16 +78,12 @@ export const GET = async (req: Request) => {
             );
         }
 
-        // 2) Decide grouping strategy
-        // If multiple topics present -> group by topic. Else group by program.
         const distinctTopics = Array.from(
             new Set(rows.map((r) => (r.topic_id ? String(r.topic_id) : "")))
         ).filter(Boolean);
 
         const groupMode: "topic" | "program" = distinctTopics.length > 1 ? "topic" : "program";
 
-        // 3) Build representative samples per group
-        // We do simple sampling: take up to N newest episodes per group.
         const MAX_GROUPS = 8;
         const MAX_SAMPLES_PER_GROUP = 18;
 
@@ -94,7 +99,6 @@ export const GET = async (req: Request) => {
             groupsMap.set(key, [...(groupsMap.get(key) ?? []), r]);
         }
 
-        // sort groups by size desc and keep top MAX_GROUPS
         const groupsSorted = Array.from(groupsMap.entries())
             .map(([key, list]) => ({ key, list }))
             .sort((a, b) => b.list.length - a.list.length)
@@ -121,7 +125,6 @@ export const GET = async (req: Request) => {
             };
         });
 
-        // 4) Ask OpenAI for structured analysis
         const system = `
 Eres un analista de contenidos (radio). Responde en español.
 
@@ -170,16 +173,62 @@ Reglas de salida:
         const content = completion.choices?.[0]?.message?.content ?? "{}";
         const parsed = JSON.parse(content);
 
+        const starter = getStarterMessage("radio", "analyze");
+        const title = buildAnalysisTitle({ programId, topicId });
+
+        const thread = await createAnalysisThread({
+            userId,
+            moduleSlug: "radio",
+            analysisKind: "analyze",
+            entitySlug: "episodes",
+            title,
+            filtersJson: { programId, topicId, grouping: groupMode },
+            resultJson: parsed,
+            metadataJson: {
+                sourceType: "radio/analyze",
+                totalRows: rows.length,
+                grouping: groupMode,
+            },
+            initialMessages: [
+                {
+                    role: "assistant",
+                    content: starter,
+                },
+            ],
+        });
+
         return new Response(
             JSON.stringify({
                 count: rows.length,
                 grouping: groupMode,
                 result: parsed,
+                thread: {
+                    id: thread.id,
+                    title: thread.title,
+                    created_at: thread.created_at,
+                },
+                initialMessages: [
+                    {
+                        role: "assistant",
+                        content: starter,
+                    },
+                ],
             }),
             { status: 200, headers: { "Content-Type": "application/json" } }
         );
-    } catch (e) {
+    } catch (e: any) {
         console.error(e);
-        return new Response(JSON.stringify({ error: "Error interno del servidor" }), { status: 500 });
+
+        if (e?.message === "UNAUTHORIZED") {
+            return new Response(JSON.stringify({ error: "Unauthorized" }), {
+                status: 401,
+                headers: { "Content-Type": "application/json" },
+            });
+        }
+
+        return new Response(JSON.stringify({ error: "Error interno del servidor" }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+        });
     }
 };

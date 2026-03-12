@@ -4,13 +4,12 @@ import React from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Wrapper from "@/components/basic/wrapper";
 import SafeArea from "@/components/basic/safe-area";
-import ComparisonChat from "@/components/cabildos/ComparisonChat";
+import PersistedAnalysisChat from "@/components/ai-history/PersistedAnalysisChat";
 
 type AnalyzeStation = {
     stationId: number;
     stationName?: string;
     question?: string;
-
     dominant_themes?: string[];
     emotions?: string[];
     demands_or_proposals?: string[];
@@ -25,6 +24,18 @@ type AnalyzeResult = {
     limitations?: string[];
 };
 
+type SavedThread = {
+    id: string;
+    title: string;
+    created_at: string;
+};
+
+type ApiResponse = {
+    result: AnalyzeResult;
+    thread?: SavedThread | null;
+    initialMessages?: { role: "user" | "assistant"; content: string }[];
+};
+
 export default function CabildosAnalyzeClient() {
     const sp = useSearchParams();
     const router = useRouter();
@@ -32,8 +43,11 @@ export default function CabildosAnalyzeClient() {
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
     const [data, setData] = React.useState<AnalyzeResult | null>(null);
+    const [thread, setThread] = React.useState<SavedThread | null>(null);
+    const [initialMessages, setInitialMessages] = React.useState<
+        { role: "user" | "assistant"; content: string }[]
+    >([]);
 
-    // Only allow these filters to be forwarded
     const allowedKeys = [
         "cabildoId",
         "region",
@@ -53,7 +67,7 @@ export default function CabildosAnalyzeClient() {
         }
 
         return `/api/cabildos/stations/analyze?${params.toString()}`;
-    }, [sp.toString()]);
+    }, [sp]);
 
     React.useEffect(() => {
         const run = async () => {
@@ -61,9 +75,11 @@ export default function CabildosAnalyzeClient() {
                 setLoading(true);
                 setError(null);
                 setData(null);
+                setThread(null);
+                setInitialMessages([]);
 
                 const res = await fetch(buildAnalyzeUrl());
-                const json = await res.json();
+                const json = (await res.json()) as ApiResponse & { error?: string };
 
                 if (!res.ok) {
                     setError(json?.error || "No se pudo generar el análisis.");
@@ -71,6 +87,8 @@ export default function CabildosAnalyzeClient() {
                 }
 
                 setData((json?.result ?? null) as AnalyzeResult);
+                setThread(json?.thread ?? null);
+                setInitialMessages(Array.isArray(json?.initialMessages) ? json.initialMessages : []);
             } catch (e) {
                 console.error(e);
                 setError("Error cargando análisis.");
@@ -81,7 +99,6 @@ export default function CabildosAnalyzeClient() {
         run();
     }, [buildAnalyzeUrl]);
 
-    // Nice label for what is being analyzed
     const appliedFiltersLabel = React.useMemo(() => {
         const pairs: string[] = [];
         for (const k of allowedKeys) {
@@ -89,7 +106,7 @@ export default function CabildosAnalyzeClient() {
             if (v) pairs.push(`${k}=${v}`);
         }
         return pairs.length ? pairs.join(" · ") : "Sin filtros (global)";
-    }, [sp.toString()]);
+    }, [sp]);
 
     return (
         <Wrapper>
@@ -131,7 +148,14 @@ export default function CabildosAnalyzeClient() {
                         {data ? (
                             <>
                                 <AnalysisView data={data} />
-                                <ComparisonChat basis={data} mode="analyze" />
+
+                                {thread ? (
+                                    <PersistedAnalysisChat
+                                        threadId={thread.id}
+                                        title="Chat (basado en el análisis guardado)"
+                                        initialMessages={initialMessages}
+                                    />
+                                ) : null}
                             </>
                         ) : null}
                     </>
@@ -146,20 +170,16 @@ function AnalysisView({ data }: { data: AnalyzeResult }) {
 
     const perStation = Array.isArray(data?.per_station) ? data.per_station : [];
     const limitations = Array.isArray(data?.limitations) ? data.limitations : [];
-
-    // sort by stationId for stable order (optional)
     const sortedStations = [...perStation].sort((a, b) => (a.stationId ?? 0) - (b.stationId ?? 0));
 
     return (
-        <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 14 }}>
-            {/* Population summary */}
+        <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 14, paddingBottom: 380 }}>
             {data?.population_summary ? (
                 <Card title="Resumen del grupo filtrado">
                     <div style={{ lineHeight: 1.5 }}>{data.population_summary}</div>
                 </Card>
             ) : null}
 
-            {/* Per station */}
             {sortedStations.map((s) => (
                 <Card
                     key={String(s.stationId)}
@@ -200,14 +220,12 @@ function AnalysisView({ data }: { data: AnalyzeResult }) {
                 </Card>
             ))}
 
-            {/* Limitations */}
             {limitations.length ? (
                 <Card title="Limitaciones">
                     <Bullets items={limitations} />
                 </Card>
             ) : null}
 
-            {/* Raw JSON toggle */}
             <div style={{ display: "flex", justifyContent: "flex-end" }}>
                 <button
                     onClick={() => setShowRaw((v) => !v)}
@@ -265,11 +283,7 @@ function Card({
 }
 
 function Grid2({ children }: { children: React.ReactNode }) {
-    return (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            {children}
-        </div>
-    );
+    return <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>{children}</div>;
 }
 
 function Block({ title, items, empty }: { title: string; items: any; empty: string }) {

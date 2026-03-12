@@ -1,4 +1,3 @@
-// app/admin/page.tsx
 "use client";
 
 import React from "react";
@@ -25,15 +24,16 @@ export default function AdminLoginPage() {
         body: JSON.stringify({ username: username.trim(), password }),
       });
 
+      const j = await res.json().catch(() => ({}));
+
       if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
         setError(j?.error || "Credenciales inválidas");
         return;
       }
 
-      // super basic "session"
       localStorage.setItem("admin_logged", "true");
       localStorage.setItem("admin_user", username.trim());
+      localStorage.setItem("admin_user_id", String(j?.user?.id ?? ""));
 
       router.push("/cabildos");
     } catch (err) {
@@ -75,7 +75,6 @@ export default function AdminLoginPage() {
             }}
             aria-hidden
           >
-            {/* tiny lock icon */}
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
               <path
                 d="M17 10V8a5 5 0 10-10 0v2"

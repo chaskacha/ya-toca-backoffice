@@ -1,19 +1,18 @@
 import { query } from "@/lib/db";
 import { openai_completions } from "@/constants/openai";
+import { createAnalysisThread } from "@/lib/ai-history-repository";
+import { requireUserIdFromRequest } from "@/lib/ai-history-auth";
+import { getStarterMessage } from "@/lib/analysis-prompts";
 
 type ResponseRow = {
     id: number;
     created_at: string;
-
     question_id: number;
     question_text: string;
-
     option_id: number | null;
     option_text: string | null;
-
     age_group: string | null;
     gender: string | null;
-
     id_region: number | null;
     region_name: string | null;
 };
@@ -33,11 +32,28 @@ function parseIntList(vals: string[]): number[] {
 
 function pct(n: number, total: number) {
     if (!total) return 0;
-    return Math.round((n / total) * 1000) / 10; // 1 decimal
+    return Math.round((n / total) * 1000) / 10;
+}
+
+function buildAnalysisTitle(filters: {
+    questionIds: number[];
+    optionIds: number[];
+    age: string[];
+    gender: string[];
+    regionIds: number[];
+}) {
+    const parts: string[] = ["Análisis darkroom"];
+    if (filters.questionIds.length) parts.push(`Preguntas ${filters.questionIds.join(", ")}`);
+    if (filters.optionIds.length) parts.push(`Opciones ${filters.optionIds.join(", ")}`);
+    if (filters.age.length) parts.push(`Edad ${filters.age.join(", ")}`);
+    if (filters.gender.length) parts.push(`Género ${filters.gender.join(", ")}`);
+    if (filters.regionIds.length) parts.push(`Región ${filters.regionIds.join(", ")}`);
+    return parts.join(" · ");
 }
 
 export const GET = async (req: Request) => {
     try {
+        const userId = requireUserIdFromRequest(req);
         const { searchParams } = new URL(req.url);
 
         const questionIds = parseIntList(getAll(searchParams, "questionId"));
@@ -45,14 +61,6 @@ export const GET = async (req: Request) => {
         const age = getAll(searchParams, "age");
         const gender = getAll(searchParams, "gender");
         const regionIds = parseIntList(getAll(searchParams, "regionId"));
-
-        /**
-         * Schema (your screenshot):
-         * - dark_room_responses: id, question_id, option_id, age_group, gender, created_at, id_region
-         * - dark_room_questions: id, question_text, created_at
-         * - dark_room_options: id, question_id, option_text, created_at
-         * - regiones: id, nombreregion   (optional)
-         */
 
         const sql = `
       SELECT
@@ -101,16 +109,6 @@ export const GET = async (req: Request) => {
             );
         }
 
-        // ------------------------------------------------------------
-        // Grouping strategy (no text; distribution analysis)
-        //
-        // Priority:
-        // - if multiple questions => group by question
-        // - else if multiple regions => group by region
-        // - else if multiple genders => group by gender
-        // - else if multiple ages => group by age
-        // - else global
-        // ------------------------------------------------------------
         const distinctQuestions = Array.from(new Set(rows.map((r) => String(r.question_id)))).filter(Boolean);
         const distinctRegions = Array.from(new Set(rows.map((r) => String(r.id_region ?? "")))).filter(Boolean);
         const distinctGenders = Array.from(new Set(rows.map((r) => String(r.gender ?? "")))).filter(Boolean);
@@ -124,12 +122,10 @@ export const GET = async (req: Request) => {
         else if (distinctGenders.length > 1) groupMode = "gender";
         else if (distinctAges.length > 1) groupMode = "age";
 
-        type GroupKey = string;
-
-        const groupsMap = new Map<GroupKey, ResponseRow[]>();
+        const groupsMap = new Map<string, ResponseRow[]>();
 
         for (const r of rows) {
-            let key: GroupKey = "global";
+            let key = "global";
             if (groupMode === "question") key = `question:${r.question_id}`;
             if (groupMode === "region") key = `region:${r.id_region ?? 0}`;
             if (groupMode === "gender") key = `gender:${String(r.gender ?? "No especifica")}`;
@@ -145,7 +141,6 @@ export const GET = async (req: Request) => {
             .sort((a, b) => b.list.length - a.list.length)
             .slice(0, MAX_GROUPS);
 
-        // Build distributions per group (top options)
         const representative = groupsSorted.map(({ key, list }) => {
             const first = list[0];
 
@@ -157,7 +152,6 @@ export const GET = async (req: Request) => {
 
             const total = list.length;
 
-            // count by option_id (including null -> "Sin opción")
             const byOption = new Map<string, { option_id: number | null; option_text: string; n: number }>();
 
             for (const r of list) {
@@ -183,13 +177,10 @@ export const GET = async (req: Request) => {
                 key,
                 label,
                 count: total,
-                options: optionsSorted, // full distribution (LLM can decide what's important)
+                options: optionsSorted,
             };
         });
 
-        // ------------------------------------------------------------
-        // LLM analysis prompt (numbers only, no quotes)
-        // ------------------------------------------------------------
         const system = `
 Eres un analista de encuestas (DarkRoom). Responde en español.
 
@@ -237,16 +228,59 @@ Reglas de salida:
         const content = completion.choices?.[0]?.message?.content ?? "{}";
         const parsed = JSON.parse(content);
 
+        const starter = getStarterMessage("darkroom", "analyze");
+        const title = buildAnalysisTitle({ questionIds, optionIds, age, gender, regionIds });
+
+        const thread = await createAnalysisThread({
+            userId,
+            moduleSlug: "darkroom",
+            analysisKind: "analyze",
+            entitySlug: "responses",
+            title,
+            filtersJson: { questionIds, optionIds, age, gender, regionIds, grouping: groupMode },
+            resultJson: parsed,
+            metadataJson: {
+                sourceType: "darkroom/analyze",
+                totalRows: rows.length,
+                grouping: groupMode,
+            },
+            initialMessages: [
+                {
+                    role: "assistant",
+                    content: starter,
+                },
+            ],
+        });
+
         return new Response(
             JSON.stringify({
                 count: rows.length,
                 grouping: groupMode,
                 result: parsed,
+                thread: {
+                    id: thread.id,
+                    title: thread.title,
+                    created_at: thread.created_at,
+                },
+                initialMessages: [
+                    {
+                        role: "assistant",
+                        content: starter,
+                    },
+                ],
             }),
             { status: 200, headers: { "Content-Type": "application/json" } }
         );
-    } catch (e) {
+    } catch (e: any) {
         console.error(e);
+
+        if (e?.message === "UNAUTHORIZED") {
+            return new Response(JSON.stringify({ error: "Unauthorized" }), {
+                status: 401,
+                headers: { "Content-Type": "application/json" },
+            });
+        }
+
         return new Response(JSON.stringify({ error: "Error interno del servidor" }), {
             status: 500,
             headers: { "Content-Type": "application/json" },

@@ -7,11 +7,24 @@ import Wrapper from "@/components/basic/wrapper";
 import SafeArea from "@/components/basic/safe-area";
 
 import MuralsComparisonTable, { CompareResult } from "@/components/murals/ComparisonTable";
-import MuralsComparisonChat from "@/components/murals/ComparisonChat";
+import PersistedAnalysisChat from "@/components/ai-history/PersistedAnalysisChat";
+import { adminFetch } from "@/lib/admin-client";
 
 function getAll(sp: URLSearchParams, key: string) {
     return sp.getAll(key).map((x) => x.trim()).filter(Boolean);
 }
+
+type SavedThread = {
+    id: string;
+    title: string;
+    created_at: string;
+};
+
+type ApiResponse = {
+    result: CompareResult;
+    thread?: SavedThread | null;
+    initialMessages?: { role: "user" | "assistant"; content: string }[];
+};
 
 export default function MuralsComparisonClient() {
     const sp = useSearchParams();
@@ -23,12 +36,16 @@ export default function MuralsComparisonClient() {
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
     const [data, setData] = React.useState<CompareResult | null>(null);
+    const [thread, setThread] = React.useState<SavedThread | null>(null);
+    const [initialMessages, setInitialMessages] = React.useState<
+        { role: "user" | "assistant"; content: string }[]
+    >([]);
 
     const compareUrl = React.useMemo(() => {
         const params = new URLSearchParams();
         groups.forEach((g) => params.append("group", g));
         return `/api/murals/compare?${params.toString()}`;
-    }, [groupsKey]);
+    }, [groupsKey, groups]);
 
     React.useEffect(() => {
         let cancelled = false;
@@ -38,14 +55,16 @@ export default function MuralsComparisonClient() {
                 setLoading(true);
                 setError(null);
                 setData(null);
+                setThread(null);
+                setInitialMessages([]);
 
                 if (groups.length < 2) {
                     setError("Debes seleccionar al menos 2 grupos para comparar.");
                     return;
                 }
 
-                const res = await fetch(compareUrl);
-                const json = await res.json();
+                const res = await adminFetch(compareUrl);
+                const json = (await res.json()) as ApiResponse & { error?: string };
 
                 if (cancelled) return;
 
@@ -55,6 +74,8 @@ export default function MuralsComparisonClient() {
                 }
 
                 setData(json?.result ?? null);
+                setThread(json?.thread ?? null);
+                setInitialMessages(Array.isArray(json?.initialMessages) ? json.initialMessages : []);
             } catch (e) {
                 console.error(e);
                 if (!cancelled) {
@@ -72,7 +93,7 @@ export default function MuralsComparisonClient() {
         return () => {
             cancelled = true;
         };
-    }, [compareUrl, groupsKey]);
+    }, [compareUrl, groupsKey, groups.length]);
 
     return (
         <Wrapper>
@@ -116,10 +137,14 @@ export default function MuralsComparisonClient() {
                                     data={data}
                                     title={data.comparison_title || "Comparación de grupos"}
                                 />
-                                <MuralsComparisonChat
-                                    mode="compare"
-                                    basis={data}
-                                />
+
+                                {thread ? (
+                                    <PersistedAnalysisChat
+                                        threadId={thread.id}
+                                        title="Chat (basado en la comparación guardada)"
+                                        initialMessages={initialMessages}
+                                    />
+                                ) : null}
                             </>
                         ) : null}
                     </>

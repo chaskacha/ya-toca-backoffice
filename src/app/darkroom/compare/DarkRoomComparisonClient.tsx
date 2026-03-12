@@ -8,7 +8,8 @@ import SafeArea from "@/components/basic/safe-area";
 import DarkRoomComparisonTable, {
     DarkRoomCompareApiResponse,
 } from "@/components/darkroom/DarkRoomComparisonTable";
-import DarkRoomComparisonChat from "@/components/darkroom/ComparisonChatDarkRoom";
+import PersistedAnalysisChat from "@/components/ai-history/PersistedAnalysisChat";
+import { adminFetch } from "@/lib/admin-client";
 
 function getAllStr(sp: URLSearchParams, key: string) {
     return sp
@@ -17,25 +18,39 @@ function getAllStr(sp: URLSearchParams, key: string) {
         .filter(Boolean);
 }
 
+type SavedThread = {
+    id: string;
+    title: string;
+    created_at: string;
+};
+
+type ApiResponse = {
+    result: DarkRoomCompareApiResponse;
+    thread?: SavedThread | null;
+    initialMessages?: { role: "user" | "assistant"; content: string }[];
+};
+
 export default function DarkRoomComparisonClient() {
     const sp = useSearchParams();
     const router = useRouter();
 
-    const dimension = (sp.get("dimension") ?? "").trim(); // "age_group" | "gender"
+    const dimension = (sp.get("dimension") ?? "").trim();
     const a = getAllStr(sp as any, "a");
     const b = getAllStr(sp as any, "b");
 
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
     const [data, setData] = React.useState<DarkRoomCompareApiResponse | null>(null);
+    const [thread, setThread] = React.useState<SavedThread | null>(null);
+    const [initialMessages, setInitialMessages] = React.useState<
+        { role: "user" | "assistant"; content: string }[]
+    >([]);
 
     const buildCompareUrl = React.useCallback(() => {
         const params = new URLSearchParams();
         params.set("dimension", dimension);
         a.forEach((x) => params.append("a", x));
         b.forEach((x) => params.append("b", x));
-        // AI enabled by default in your API; if you ever want to disable:
-        // params.set("ai", "0");
         return `/api/darkroom/compare?${params.toString()}`;
     }, [dimension, a.join("|"), b.join("|")]);
 
@@ -45,6 +60,8 @@ export default function DarkRoomComparisonClient() {
                 setLoading(true);
                 setError(null);
                 setData(null);
+                setThread(null);
+                setInitialMessages([]);
 
                 if (!dimension) {
                     setError("Falta dimension.");
@@ -55,15 +72,17 @@ export default function DarkRoomComparisonClient() {
                     return;
                 }
 
-                const res = await fetch(buildCompareUrl());
-                const json = await res.json();
+                const res = await adminFetch(buildCompareUrl());
+                const json = (await res.json()) as ApiResponse & { error?: string };
 
                 if (!res.ok) {
                     setError(json?.error || "No se pudo generar la comparación.");
                     return;
                 }
 
-                setData(json as DarkRoomCompareApiResponse);
+                setData(json?.result ?? null);
+                setThread(json?.thread ?? null);
+                setInitialMessages(Array.isArray(json?.initialMessages) ? json.initialMessages : []);
             } catch (e) {
                 console.error(e);
                 setError("Error cargando comparación.");
@@ -124,12 +143,13 @@ export default function DarkRoomComparisonClient() {
                                     cohortB_label={cohortB_label}
                                 />
                                 <div style={{ height: 14 }} />
-                                <DarkRoomComparisonChat
-                                    mode="compare"
-                                    basis={data}
-                                    cohortA_label={cohortA_label}
-                                    cohortB_label={cohortB_label}
-                                />
+                                {thread ? (
+                                    <PersistedAnalysisChat
+                                        threadId={thread.id}
+                                        title="Chat (basado en la comparación guardada)"
+                                        initialMessages={initialMessages}
+                                    />
+                                ) : null}
                             </>
                         ) : null}
                     </>
