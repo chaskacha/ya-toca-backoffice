@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Wrapper from "@/components/basic/wrapper";
 import SafeArea from "@/components/basic/safe-area";
 import PersistedAnalysisChat from "@/components/ai-history/PersistedAnalysisChat";
+import ThreadNotes from "@/components/ai-history/ThreadNotes";
 import { adminFetch } from "@/lib/admin-client";
 
 type Message = {
@@ -197,6 +198,7 @@ export default function AnalysisThreadClient({ threadId }: { threadId: string })
                   paddingBottom: 380,
                 }}
               >
+                <ThreadNotes threadId={thread.id} />
                 <CardBox>
                   <div style={{ fontSize: 18, fontWeight: 900 }}>{thread.title}</div>
                   <div style={{ marginTop: 8, color: "#666" }}>

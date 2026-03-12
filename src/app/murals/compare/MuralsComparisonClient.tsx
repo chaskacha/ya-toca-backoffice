@@ -73,9 +73,12 @@ export default function MuralsComparisonClient() {
                     return;
                 }
 
-                setData(json?.result ?? null);
-                setThread(json?.thread ?? null);
-                setInitialMessages(Array.isArray(json?.initialMessages) ? json.initialMessages : []);
+                if (!json?.thread?.id) {
+                    setError("Se generó el análisis, pero no se pudo abrir el hilo.");
+                    return;
+                }
+
+                router.replace(`/analyses/${json.thread.id}`);
             } catch (e) {
                 console.error(e);
                 if (!cancelled) {
