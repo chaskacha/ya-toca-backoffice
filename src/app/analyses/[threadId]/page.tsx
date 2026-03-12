@@ -1,9 +1,11 @@
 import AnalysisThreadClient from "./AnalysisThreadClient";
 
-export default function AnalysisThreadPage({
+export default async function AnalysisThreadPage({
   params,
 }: {
-  params: { threadId: string };
+  params: Promise<{ threadId: string }>;
 }) {
-  return <AnalysisThreadClient threadId={params.threadId} />;
+  const { threadId } = await params;
+
+  return <AnalysisThreadClient threadId={threadId} />;
 }
