@@ -10,10 +10,12 @@ type Body = {
     message?: string;
 };
 
-export const POST = async (
-    req: Request,
-    { params }: { params: { threadId: string } }
-) => {
+type RouteContext = {
+    params: Promise<{ threadId: string }>;
+};
+
+export const POST = async (req: Request, context: RouteContext) => {
+    const { threadId } = await context.params;
     try {
         const userId = requireUserIdFromRequest(req);
         const body = (await req.json()) as Body;
@@ -26,7 +28,7 @@ export const POST = async (
             });
         }
 
-        const loaded = await getAnalysisThreadByIdForUser(params.threadId, userId);
+        const loaded = await getAnalysisThreadByIdForUser(threadId, userId);
         if (!loaded) {
             return new Response(JSON.stringify({ error: "Thread not found" }), {
                 status: 404,
@@ -65,7 +67,7 @@ export const POST = async (
 
         const answer = completion.choices?.[0]?.message?.content ?? "No pude responder.";
 
-        await appendAnalysisMessages(params.threadId, userId, [
+        await appendAnalysisMessages(threadId, userId, [
             { role: "user", content: text },
             { role: "assistant", content: answer },
         ]);
