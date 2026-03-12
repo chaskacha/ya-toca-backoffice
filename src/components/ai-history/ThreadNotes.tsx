@@ -126,7 +126,7 @@ export default function ThreadNotes({ threadId }: { threadId: string }) {
                 style={{
                     width: "100%",
                     borderRadius: 12,
-                    border: "1px solid #ddd",
+                    border: "1px solid #000",
                     padding: 12,
                     resize: "vertical",
                     outline: "none",
@@ -192,7 +192,7 @@ export default function ThreadNotes({ threadId }: { threadId: string }) {
                             style={{
                                 border: "1px solid #eee",
                                 borderRadius: 12,
-                                background: "#fafafa",
+                                background: "#fff",
                                 padding: 12,
                             }}
                         >

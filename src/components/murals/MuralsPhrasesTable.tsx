@@ -6,6 +6,7 @@ import CompareModal, { CompareModalValue, MuralsCompareGroup } from "./CompareMo
 import { get_substring } from "@/constants/functions";
 
 type Row = {
+    phrase_id: number;
     created_at: string;
 
     event_id: number | null;
@@ -32,6 +33,7 @@ function encodeGroup(group: MuralsCompareGroup) {
 
     return params.toString();
 }
+
 
 export default function MuralsPhrasesTable({
     filters,
@@ -60,6 +62,53 @@ export default function MuralsPhrasesTable({
         params.set("pageSize", String(pageSize));
         return `/api/murals/phrases/list?${params.toString()}`;
     }, [filters.regionId, filters.eventId, filters.activityId, page]);
+
+    const deletePhrase = async (id: number) => {
+        if (!confirm("¿Eliminar esta frase?")) return;
+
+        try {
+            await fetch(`/api/murals/phrases/${id}`, {
+                method: "DELETE"
+            });
+
+            setRows(prev => prev.filter(r => r.phrase_id !== id));
+            setTotal(prev => prev - 1);
+
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    const editPhrase = async (row: Row) => {
+        const phrase = prompt("Editar frase", row.phrase);
+        if (!phrase) return;
+
+        const question = prompt("Editar pregunta", row.question || "") ?? null;
+
+        try {
+            await fetch(`/api/murals/phrases/${row.phrase_id}`, {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    phrase,
+                    question
+                })
+            });
+
+            setRows(prev =>
+                prev.map(r =>
+                    r.phrase_id === row.phrase_id
+                        ? { ...r, phrase, question }
+                        : r
+                )
+            );
+
+        } catch (e) {
+            console.error(e);
+        }
+    };
 
     React.useEffect(() => setPage(1), [filters.regionId, filters.eventId, filters.activityId]);
 
@@ -154,6 +203,7 @@ export default function MuralsPhrasesTable({
                                 <th style={{ padding: 12 }}>Región</th>
                                 <th style={{ padding: 12 }}>Actividad</th>
                                 <th style={{ padding: 12 }}>Frase</th>
+                                <th style={{ padding: 12 }}>Acciones</th>
                             </tr>
                         </thead>
 
@@ -182,6 +232,36 @@ export default function MuralsPhrasesTable({
                                         >
                                             Abrir foto
                                         </a>
+                                    </td>
+                                    <td style={{ padding: 12, whiteSpace: "nowrap" }}>
+                                        <div style={{ display: "flex", gap: 8 }}>
+                                            <button
+                                                onClick={() => editPhrase(r)}
+                                                style={{
+                                                    padding: "4px 8px",
+                                                    borderRadius: 6,
+                                                    border: "1px solid #ddd",
+                                                    background: "#fff",
+                                                    cursor: "pointer"
+                                                }}
+                                            >
+                                                Editar
+                                            </button>
+
+                                            <button
+                                                onClick={() => deletePhrase(r.phrase_id)}
+                                                style={{
+                                                    padding: "4px 8px",
+                                                    borderRadius: 6,
+                                                    border: "1px solid #ddd",
+                                                    background: "#ff4d4f",
+                                                    color: "#fff",
+                                                    cursor: "pointer"
+                                                }}
+                                            >
+                                                Eliminar
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}

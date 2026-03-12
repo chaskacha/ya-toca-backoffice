@@ -1,5 +1,4 @@
 export function getUserIdFromRequest(req: Request): number | null {
-    console.log("req.headers", req.headers);
     const raw =
         req.headers.get("x-user-id") ||
         req.headers.get("x-userid") ||

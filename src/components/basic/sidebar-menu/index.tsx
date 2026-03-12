@@ -27,7 +27,6 @@ const SidebarMenu: React.FC = () => {
         { href: '/darkroom', name: 'Dark Room' },
         { href: '/radio', name: 'Radio' },
         { href: '/videos', name: 'Videos' },
-        { href: '/analyses', name: 'Analyses' },
         // { href: '/dashboard', name: 'Dashboard' },
         // { href: '/topics', name: 'Temas' },
         // { href: '/summary', name: 'Resumen' },
@@ -47,7 +46,9 @@ const SidebarMenu: React.FC = () => {
                 ))}
             </div>
             <div style={{ height: 68 }} />
-            <div className='sidebar-menu-item' onClick={logout}>Cerrar sesión</div>
+            <div className='sidebar-menu-item pointer' onClick={() => router.push('/analyses')}>Mis analyses</div>
+            <div style={{ height: 10 }} />
+            <div className='sidebar-menu-item pointer' onClick={logout}>Cerrar sesión</div>
         </div>
     )
 }
