@@ -224,14 +224,14 @@ export default function MuralsPhrasesTable({
                                             {r.phrase}
                                         </div>
                                         <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>{r.question || "Sin pregunta"}</div>
-                                        <a
+                                        {r.photo_url && <a
                                             style={{ fontSize: 12, opacity: 0.7, marginTop: 6, fontWeight: 700, textDecoration: "underline" }}
                                             href={r.photo_url || ""}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                         >
                                             Abrir foto
-                                        </a>
+                                        </a>}
                                     </td>
                                     <td style={{ padding: 12, whiteSpace: "nowrap" }}>
                                         <div style={{ display: "flex", gap: 8 }}>
